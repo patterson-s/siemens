@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1 class="my-4">Evaluation Results for {{ project.name }}</h1>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Evaluation Status: {{ evaluation.status.value }}</h5>
+            <p class="card-text"><strong>Created:</strong> {{ evaluation.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+            <p class="card-text"><strong>System Prompt:</strong></p>
+            <pre class="bg-light p-3">{{ evaluation.system_prompt }}</pre>
+        </div>
+    </div>
+
+    <h2>Responses</h2>
+    {% for response in evaluation.responses %}
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">{{ response.question.name }}</h5>
+                <p class="card-text"><strong>Question:</strong> {{ response.question.question }}</p>
+                <p class="card-text"><strong>Response:</strong></p>
+                <pre class="bg-light p-3">{{ response.response_text }}</pre>
+            </div>
+        </div>
+    {% endfor %}
+
+    <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-primary">Back to Project</a>
+{% endblock %} 

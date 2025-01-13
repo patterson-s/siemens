@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Assessment Progress</h2>
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title mb-4">Processing Questions...</h5>
+            
+            <!-- Progress bar -->
+            <div class="progress mb-3" style="height: 25px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" 
+                     id="progressBar"
+                     style="width: 0%;" 
+                     aria-valuenow="0" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">0%</div>
+            </div>
+            
+            <!-- Status message alert - initially hidden -->
+            <div id="statusMessage" class="alert alert-info" style="display: none;">
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <p id="questionCount" class="mb-2">Processed 0 out of {{ total_questions }} questions</p>
+                    <p id="modelUsed" class="text-muted mb-2"></p>
+                    <p id="estimatedTime" class="text-muted mb-2">Estimated time remaining: calculating...</p>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">Token Usage</h6>
+                            <p class="mb-1">Input: <span id="inputTokens">0</span></p>
+                            <p class="mb-1">Output: <span id="outputTokens">0</span></p>
+                            <p class="mb-0">Total: <span id="totalTokens">0</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="completionMessage" style="display: none;">
+                <hr>
+                <p class="text-success">Assessment completed! Redirecting...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function formatNumber(num) {
+    return new Intl.NumberFormat().format(num);
+}
+
+function formatTime(seconds) {
+    if (seconds < 60) return `${seconds} seconds`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''}`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours} hour${hours > 1 ? 's' : ''} ${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}`;
+}
+
+function checkProgress() {
+    fetch('/projects/assessment_progress/{{ evaluation_id }}')
+        .then(response => response.json())
+        .then(data => {
+            const progress = (data.questions_answered / data.total_questions) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressBar').innerText = Math.round(progress) + '%';
+            document.getElementById('questionCount').innerText = 
+                `Processed ${data.questions_answered} out of ${data.total_questions} questions`;
+            
+            // Update model info
+            document.getElementById('modelUsed').innerText = 
+                `Using ${data.model_used.replace('claude-', 'Claude ').replace('-latest', '').replace('-', '.')}`;
+            
+            // Update token usage
+            document.getElementById('inputTokens').innerText = formatNumber(data.token_usage.input);
+            document.getElementById('outputTokens').innerText = formatNumber(data.token_usage.output);
+            document.getElementById('totalTokens').innerText = 
+                formatNumber(data.token_usage.input + data.token_usage.output);
+            
+            // Update estimated time
+            if (data.estimated_remaining > 0) {
+                document.getElementById('estimatedTime').innerText = 
+                    `Estimated time remaining: ${formatTime(data.estimated_remaining)}`;
+            }
+            
+            // Handle status message
+            const statusDiv = document.getElementById('statusMessage');
+            if (data.status_message) {
+                statusDiv.innerText = data.status_message;
+                statusDiv.style.display = 'block';
+            } else {
+                statusDiv.style.display = 'none';
+            }
+            
+            if (data.is_complete) {
+                document.getElementById('completionMessage').style.display = 'block';
+                setTimeout(() => {
+                    window.location.href = '/projects/{{ project.id }}/evaluation/{{ evaluation_id }}';
+                }, 2000);
+                return;
+            }
+            
+            if (data.status !== 'completed' && data.status !== 'failed') {
+                setTimeout(checkProgress, 2000);
+            }
+        });
+}
+
+checkProgress();
+</script>
+{% endblock %} 

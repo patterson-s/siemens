@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1 class="my-4">Evaluation in Progress for {{ project.name }}</h1>
+    
+    <div id="progress-container">
+        <p id="progress-message">Starting evaluation with {{ total_questions }} questions...</p>
+        <div class="progress mb-4">
+            <div class="progress-bar" role="progressbar" style="width: 0%;" id="progress-bar" 
+                 aria-valuenow="0" aria-valuemin="0" aria-valuemax="{{ total_questions }}">
+                <span id="progress-text">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="results-container" style="display: none;">
+        <h2>Evaluation Results</h2>
+        <div class="card mb-4">
+            <div class="card-body">
+                <p><strong>Model Used:</strong> <span id="model-used"></span></p>
+                <p><strong>Evaluation Status:</strong> <span id="evaluation-status"></span></p>
+            </div>
+        </div>
+        
+        <div class="form-group mb-4">
+            <label for="questionSelect">Select Question:</label>
+            <select class="form-control" id="questionSelect">
+                <!-- Options will be populated dynamically -->
+            </select>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title" id="selectedQuestionTitle"></h5>
+                <div class="card-text" id="selectedQuestionResponse"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let totalQuestions = {{ total_questions }};
+        let questionsAnswered = 0;
+        let isCompleted = false;
+        let allResponses = [];
+
+        function formatResponse(text) {
+            return text.replace(/\n/g, '<br>');
+        }
+
+        function displaySelectedResponse() {
+            const selectedIndex = document.getElementById('questionSelect').value;
+            const response = allResponses[selectedIndex];
+            
+            document.getElementById('selectedQuestionTitle').textContent = response.question;
+            document.getElementById('selectedQuestionResponse').innerHTML = formatResponse(response.response_text);
+        }
+
+        function populateDropdown(responses) {
+            const select = document.getElementById('questionSelect');
+            select.innerHTML = ''; // Clear existing options
+            
+            responses.forEach((response, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = response.question;
+                select.appendChild(option);
+            });
+
+            // Add change event listener
+            select.addEventListener('change', displaySelectedResponse);
+            
+            // Display first response
+            displaySelectedResponse();
+        }
+
+        function checkProgress() {
+            if (isCompleted) return; // Don't check if already completed
+
+            fetch("{{ url_for('main.check_evaluation_progress', evaluation_id=evaluation_id) }}")
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Progress data:', data);  // Debug line
+
+                    if (data.is_complete || data.status === 'COMPLETED') {
+                        if (!isCompleted) {  // Only handle completion once
+                            isCompleted = true;
+                            const progressMessage = document.getElementById('progress-message');
+                            progressMessage.innerText = 'Evaluation completed successfully!';
+                            
+                            const progressBar = document.getElementById('progress-bar');
+                            progressBar.style.width = '100%';
+                            progressBar.setAttribute('aria-valuenow', totalQuestions);
+                            document.getElementById('progress-text').innerText = '100%';
+                            
+                            document.getElementById('results-container').style.display = 'block';
+                            document.getElementById('model-used').textContent = data.model_used || 'Not specified';
+                            document.getElementById('evaluation-status').textContent = data.status;
+                            
+                            if (data.responses) {
+                                allResponses = data.responses;
+                                populateDropdown(data.responses);
+                            }
+                            
+                            clearInterval(progressInterval);
+                        }
+                    } else if (data.status === 'FAILED') {
+                        const progressMessage = document.getElementById('progress-message');
+                        progressMessage.innerText = 'Evaluation failed. Please try again.';
+                        clearInterval(progressInterval);
+                    } else {
+                        questionsAnswered = data.questions_answered;
+                        const percentage = Math.round((questionsAnswered / totalQuestions) * 100);
+                        
+                        const progressBar = document.getElementById('progress-bar');
+                        progressBar.style.width = `${percentage}%`;
+                        progressBar.setAttribute('aria-valuenow', questionsAnswered);
+                        document.getElementById('progress-text').innerText = `${percentage}%`;
+                        
+                        const progressMessage = document.getElementById('progress-message');
+                        progressMessage.innerText = `${questionsAnswered} of ${totalQuestions} questions answered`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking progress:', error);
+                    document.getElementById('progress-message').innerText = 
+                        'Error checking progress. Please refresh the page.';
+                });
+        }
+
+        // Initial check
+        checkProgress();
+        // Set up interval for checking progress
+        const progressInterval = setInterval(checkProgress, 2000);
+    </script>
+{% endblock %} 

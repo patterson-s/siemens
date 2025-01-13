@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1 class="my-4">Start New Assessment for {{ project.name }}</h1>
+    
+    <form method="POST" action="{{ url_for('main.start_assessment', project_id=project.id) }}">
+        <div class="form-group mb-4">
+            <label for="model_select">Select Model:</label>
+            <select class="form-control" id="model_select" name="model_select">
+                {% for model_id, model_name in config.CLAUDE_MODELS.items() %}
+                    <option value="{{ model_id }}" {% if model_id == config.CLAUDE_MODEL %}selected{% endif %}>
+                        {{ model_name }}
+                    </option>
+                {% endfor %}
+            </select>
+            <small class="form-text text-muted">
+                Haiku: Faster, shorter responses. Sonnet: More detailed analysis. Opus: Longer responses.
+            </small>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Assessment Questions</h5>
+            </div>
+            <div class="card-body">
+                {% for question in questions|sort(attribute='order') %}
+                <div class="custom-control custom-checkbox mb-3">
+                    <input type="checkbox" class="custom-control-input" 
+                           id="question_{{ question.id }}" 
+                           name="selected_questions" 
+                           value="{{ question.id }}"
+                           checked>
+                    <label class="custom-control-label" for="question_{{ question.id }}">
+                        <strong>{{ question.name }}</strong>
+                        <p class="text-muted mb-0">{{ question.question }}</p>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Start Assessment</button>
+        <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-secondary">Cancel</a>
+    </form>
+{% endblock %} 

@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1 class="my-4">API Logs</h1>
+
+    <!-- Summary Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Total Calls</h5>
+                    <p class="card-text h2">{{ total_calls }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Success Rate</h5>
+                    <p class="card-text h2">{{ "%.1f"|format(success_rate) }}%</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Avg Tokens</h5>
+                    <p class="card-text h4">
+                        <span class="text-muted">In:</span> {{ "{:,}".format(avg_input_tokens|int or 0) }}<br>
+                        <span class="text-muted">Out:</span> {{ "{:,}".format(avg_output_tokens|int or 0) }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Average Response Times</h5>
+                    <div class="d-flex justify-content-around align-items-center">
+                        {% for stat in model_performance|sort(attribute='avg_time') %}
+                            <div class="px-2">
+                                <span class="text-muted">{{ stat.model }}</span><br>
+                                <strong>{{ "%.2f"|format(stat.avg_time) }}s</strong>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Logs Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">Detailed Logs</h5>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshTable">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover" id="apiLogsTable">
+                    <thead class="thead-light">
+                        <tr>
+                            <th class="sortable" data-sort="time">Time (EDT) ↕</th>
+                            <th class="sortable" data-sort="project">Project ↕</th>
+                            <th class="sortable" data-sort="question">Question ↕</th>
+                            <th class="sortable" data-sort="model">Model ↕</th>
+                            <th class="sortable" data-sort="tokens">Tokens (In/Out) ↕</th>
+                            <th class="sortable" data-sort="duration">Duration ↕</th>
+                            <th class="sortable" data-sort="status">Status ↕</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log, project, question in logs %}
+                            <tr class="{{ 'table-danger' if not log.success }}" 
+                                {% if not log.success %}
+                                data-toggle="tooltip" 
+                                data-placement="left" 
+                                title="{{ log.error_message }}"
+                                {% endif %}>
+                                <td>
+                                    {% set adjusted_time = log.start_time.replace(
+                                        hour=(log.start_time.hour - 4) % 24,
+                                        day=log.start_time.day - 1 if log.start_time.hour < 4 else log.start_time.day
+                                    ) %}
+                                    {{ adjusted_time.strftime('%b %d, %Y %H:%M') }}
+                                </td>
+                                <td>{{ project.name }}</td>
+                                <td>{{ question.name }}</td>
+                                <td>{{ log.model_used|replace('claude-', 'Claude ')|replace('-latest', '')|replace('-', '.')|title }}</td>
+                                <td>{{ "{:,}".format(log.input_tokens or 0) }} / {{ "{:,}".format(log.output_tokens or 0) }}</td>
+                                <td>
+                                    {% if log.end_time %}
+                                        {{ ((log.end_time - log.start_time).total_seconds())|round(1) }}s
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.success %}
+                                        <span class="badge badge-success">Success</span>
+                                    {% else %}
+                                        <span class="badge badge-danger">Failed</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="text-muted">
+                    Showing {{ logs|length }} entries
+                </div>
+                <nav aria-label="Table navigation">
+                    <ul class="pagination pagination-sm mb-0">
+                        <!-- Pagination will be added via JavaScript -->
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Move the Model Performance card after the Detailed Logs card -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Model Performance Metrics (Averages)</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>Total Calls</th>
+                                    <th>Avg Response Time</th>
+                                    <th>Avg Tokens (In/Out)</th>
+                                    <th>Avg Total Tokens</th>
+                                    <th>Success Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in model_performance|sort(attribute='avg_time') %}
+                                    <tr>
+                                        <td>{{ stat.model }}</td>
+                                        <td>{{ stat.calls }}</td>
+                                        <td>{{ "%.2f"|format(stat.avg_time) }}s</td>
+                                        <td>{{ "{:,}".format(stat.avg_input) }} / {{ "{:,}".format(stat.avg_output) }}</td>
+                                        <td>{{ "{:,}".format(stat.avg_input + stat.avg_output) }}</td>
+                                        <td>{{ "%.1f"|format(stat.success_rate) }}%</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://kit.fontawesome.com/your-font-awesome-kit.js"></script>
+<script>
+$(document).ready(function() {
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+
+    // Table sorting
+    $('.sortable').click(function() {
+        const column = $(this).data('sort');
+        const table = $('#apiLogsTable');
+        const rows = table.find('tbody tr').toArray();
+        const isAsc = $(this).hasClass('asc');
+        
+        rows.sort((a, b) => {
+            const aVal = $(a).find(`td:eq(${$(this).index()})`).text();
+            const bVal = $(b).find(`td:eq(${$(this).index()})`).text();
+            return isAsc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
+        });
+        
+        $(this).toggleClass('asc');
+        table.find('tbody').empty().append(rows);
+    });
+
+    // Refresh button
+    $('#refreshTable').click(function() {
+        location.reload();
+    });
+});
+</script>
+<style>
+    .sortable { cursor: pointer; }
+    .sortable:hover { background-color: #f8f9fa; }
+    .table td { vertical-align: middle; }
+    .badge { font-size: 90%; }
+</style>
+{% endblock %} 

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="jumbotron bg-white">
+        <h1 class="display-4">Welcome to {{ config.APP_NAME }}</h1>
+        <p class="lead">An AI-powered tool for evaluating Siemens Integrity Initiative project documentation.</p>
+        <hr class="my-4">
+        <p>Get started by selecting a project to assess or review existing questions.</p>
+        <div class="mt-4">
+            <a class="btn btn-primary btn-lg mr-2" href="{{ url_for('main.projects') }}" role="button">View Projects</a>
+            <a class="btn btn-secondary btn-lg" href="{{ url_for('main.questions') }}" role="button">Manage Questions</a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Projects</h5>
+                    <p class="card-text">Browse and assess projects using advanced AI analysis.</p>
+                    <a href="{{ url_for('main.projects') }}" class="btn btn-primary">Go to Projects</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Assessment Questions</h5>
+                    <p class="card-text">View and manage the questions used for project assessments.</p>
+                    <a href="{{ url_for('main.questions') }}" class="btn btn-primary">Manage Questions</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %} 

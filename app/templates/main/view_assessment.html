@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1 class="my-4">Assessment Results for {{ project.name }}</h1>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Assessment Details</h5>
+            <p><strong>Date:</strong> {{ evaluation.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+            <p><strong>Status:</strong> {{ evaluation.status.value }}</p>
+            <p><strong>Model Used:</strong> {{ evaluation.model_used }}</p>
+        </div>
+    </div>
+
+    {% for response in evaluation.responses|sort(attribute='question.order') %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">{{ response.question.name }}</h5>
+            <h6 class="card-subtitle mb-3 text-muted">Question: {{ response.question.question }}</h6>
+            <div class="response-text">{{ response.response_text | nl2br | safe }}</div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="mt-4 mb-4">
+        <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-primary">Back to Project</a>
+    </div>
+{% endblock %} 
