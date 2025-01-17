@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block styles %}
+<style>
+    .chat-history {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    .user-message {
+        background-color: #f8f9fa;
+        padding: 0.5rem;
+        border-radius: 4px;
+    }
+    .assistant-message {
+        background-color: #e9ecef;
+        padding: 0.5rem;
+        border-radius: 4px;
+    }
+    .message-content {
+        white-space: pre-wrap;
+    }
+    .loading-text {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('queryForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const button = document.getElementById('submitBtn');
+            const normalText = button.querySelector('.normal-text');
+            const loadingText = button.querySelector('.loading-text');
+            
+            // Disable the button and show loading state
+            button.disabled = true;
+            normalText.style.display = 'none';
+            loadingText.style.display = 'inline-block';
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% block content %}
+    <h1 class="my-4">Query the Assessment Results Data</h1>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <form method="POST" id="queryForm">
+                <div class="form-group">
+                    <label for="query">Enter your query:</label>
+                    <textarea class="form-control" id="query" name="query" rows="4" required></textarea>
+                    <small class="form-text text-muted">Ask questions about the project assessment data.</small>
+                </div>
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <span class="normal-text">Submit</span>
+                    <span class="loading-text" style="display: none;">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        Generating Results...
+                    </span>
+                </button>
+            </form>
+
+            {% if response %}
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Latest Response</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if thought_process %}
+                            <div class="mb-3">
+                                <h6>Thought Process:</h6>
+                                <pre class="bg-light p-2">{{ thought_process }}</pre>
+                            </div>
+                        {% endif %}
+                        <h6>Response:</h6>
+                        <div class="response-text">{{ response | nl2br | safe }}</div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Conversation History</h5>
+                </div>
+                <div class="card-body">
+                    {% if chat_history %}
+                        <div class="chat-history">
+                            {% for message in chat_history %}
+                                <div class="message mb-3 {% if message.role == 'user' %}user-message{% else %}assistant-message{% endif %}">
+                                    <small class="text-muted">{{ message.role|title }}:</small>
+                                    <div class="message-content">
+                                        {{ message.content | truncate(200) }}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No conversation history yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %} 

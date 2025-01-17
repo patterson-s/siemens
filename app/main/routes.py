@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, request, flash, send_from_directory, jsonify
+from flask import render_template, redirect, url_for, request, flash, send_from_directory, jsonify, session, current_app
 from app.main import bp
 from app.models.models import Project, ProjectQuestion, Document, EvaluationRun, EvaluationResponse, EvaluationStatus, APILog  # Import EvaluationStatus
 from app import db  # Import the db instance
@@ -9,6 +9,14 @@ from threading import Thread
 import pdfplumber
 import time
 from datetime import datetime, timedelta  # Add timedelta to the import
+from langchain.agents import create_sql_agent
+from langchain.agents.agent_types import AgentType
+from langchain.sql_database import SQLDatabase
+from langchain_anthropic import ChatAnthropic
+from langchain.agents.agent_toolkits import SQLDatabaseToolkit
+from langchain.prompts import PromptTemplate
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationChain
 
 @bp.route('/')
 @bp.route('/index')
@@ -141,6 +149,7 @@ def start_assessment(project_id):
     if request.method == 'POST':
         selected_model = request.form.get('model_select', Config.CLAUDE_MODEL)
         selected_questions = request.form.getlist('selected_questions')
+        temperature = float(request.form.get('temperature', 0.7))  # Get the temperature value
         
         if not selected_questions:
             flash('Please select at least one question for the assessment.', 'danger')
@@ -158,7 +167,7 @@ def start_assessment(project_id):
         db.session.commit()
         
         # Start the evaluation process in a background thread
-        thread = Thread(target=run_evaluation, args=(project.id, evaluation.id, selected_questions))
+        thread = Thread(target=run_evaluation, args=(project.id, evaluation.id, selected_questions, temperature))
         thread.daemon = True
         thread.start()
         
@@ -265,7 +274,7 @@ def check_assessment_progress(evaluation_id):
         'estimated_remaining': round(estimated_remaining)
     })
 
-def run_evaluation(project_id, evaluation_id, selected_question_ids):
+def run_evaluation(project_id, evaluation_id, selected_question_ids, temperature):
     """Run the evaluation process in the background"""
     from app import create_app
     
@@ -285,8 +294,8 @@ def run_evaluation(project_id, evaluation_id, selected_question_ids):
             # Set rate limit based on model
             RATE_LIMITS = {
                 'claude-3-opus-latest': 40000,
-                'claude-3-sonnet-latest': 80000,
-                'claude-3-haiku-latest': 100000
+                'claude-3-5-sonnet-latest': 80000,
+                'claude-3-5-haiku-latest': 100000
             }
             rate_limit = RATE_LIMITS.get(evaluation.model_used, 100000)  # Default to 100k if unknown
             buffer_limit = rate_limit - 5000  # Leave 5k token safety margin
@@ -337,6 +346,7 @@ def run_evaluation(project_id, evaluation_id, selected_question_ids):
                     response = anthropic.messages.create(
                         model=evaluation.model_used,
                         max_tokens=4096,
+                        temperature=temperature,
                         system=evaluation.system_prompt,
                         messages=[
                             {
@@ -488,3 +498,119 @@ def api_logs():
                          avg_response_time=avg_response_time,
                          model_performance=model_performance,
                          title='API Logs - ' + Config.APP_NAME) 
+
+@bp.route('/ai-agent', methods=['GET', 'POST'])
+def ai_agent():
+    if 'chat_memory' not in session:
+        session['chat_memory'] = []
+    
+    if request.method == 'POST':
+        user_query = request.form.get('query')
+        
+        # Create SQLDatabase instance
+        db_uri = current_app.config['SQLALCHEMY_DATABASE_URI']
+        sql_db = SQLDatabase.from_uri(db_uri)
+        
+        # Initialize the LLM with the correct wrapper
+        llm = ChatAnthropic(
+            model="claude-3-5-sonnet-latest",
+            anthropic_api_key=Config.CLAUDE_API_KEY,
+            temperature=0.7,
+            max_tokens=4000
+        )
+        
+        # Create memory
+        memory = ConversationBufferMemory(
+            memory_key="chat_history",
+            return_messages=True
+        )
+        
+        # Load previous conversation
+        for message in session['chat_memory']:
+            memory.chat_memory.add_message(message)
+        
+        # Create the toolkit and agent
+        toolkit = SQLDatabaseToolkit(db=sql_db, llm=llm)
+        
+        try:
+            agent = create_sql_agent(
+                llm=llm,
+                toolkit=toolkit,
+                agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+                verbose=True,
+                memory=memory
+            )
+            
+            # Define the schema information
+            schema_info = """
+            The database contains evaluation responses for project assessments.
+            Key tables:
+            - univ_evaluation_responses: Contains responses to assessment questions
+            - univ_evaluation_runs: Contains information about assessment runs
+            - univ_projects: Contains project details including:
+            - univ_project_questions: Contains the assessment questions including:
+                * question: The full text of the assessment question (text, required)
+                * name: Short identifier/name for the question (string[50], required)
+            
+            Relationships:
+            - evaluation_responses.evaluation_run_id -> evaluation_runs.id
+            - evaluation_runs.project_id -> projects.id
+            - evaluation_responses.question_id -> project_questions.id
+            """
+            
+            # Create the full prompt for the agent with more explicit instructions
+            prompt = f"""
+            You are an AI analyst examining project evaluation data.
+            
+            Database Schema Information:
+            {schema_info}
+            
+            Previous context: {memory.chat_memory.messages}
+            
+            User Question: {user_query}
+            
+            Please follow these steps in your response:
+            1. Write and execute an SQL query to get the relevant data
+            2. Show the actual query results (including specific values, numbers, text)
+            3. Then provide your analysis of those results
+            
+            Important: Make sure to include the actual data values in your response, not just descriptions of what you queried.
+            """
+            
+            try:
+                response = agent.run(prompt)
+            except Exception as e:
+                error_msg = str(e)
+                if "OUTPUT_PARSING_FAILURE" in error_msg:
+                    # Extract just the response part without the error message
+                    start = error_msg.find('`') + 1
+                    end = error_msg.rfind('`')
+                    if start > 0 and end > start:
+                        response = error_msg[start:end].strip()
+                    else:
+                        raise e
+                else:
+                    raise e
+            
+            # Update session memory
+            session['chat_memory'].append({"role": "user", "content": user_query})
+            session['chat_memory'].append({"role": "assistant", "content": response})
+            
+            # Clean and format the response
+            formatted_response = response.replace('handle_parsing_errors=True` to the AgentExecutor. This is the error: Could not parse LLM output: `', '')
+            formatted_response = formatted_response.replace('\n', '<br>')
+            
+            return render_template('main/ai_agent.html', 
+                                response=formatted_response,
+                                query=user_query,
+                                chat_history=session['chat_memory'])
+                                
+        except Exception as e:
+            flash(f'Error processing query: {str(e)}', 'error')
+            return render_template('main/ai_agent.html', 
+                                response=None,
+                                chat_history=session['chat_memory'])
+    
+    return render_template('main/ai_agent.html', 
+                         response=None,
+                         chat_history=session.get('chat_memory', [])) 

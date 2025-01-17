@@ -3,7 +3,7 @@
 {% block content %}
     <h1 class="my-4">Assessment Questions</h1>
     <div class="row">
-        {% for question in questions %}
+        {% for question in questions|sort(attribute='order') %}
             <div class="col-12 mb-3">  <!-- Full width card -->
                 <div class="card">
                     <div class="card-body">

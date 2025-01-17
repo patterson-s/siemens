@@ -31,7 +31,7 @@ Key Instructions:
 5. If there is insufficient information to fully answer any aspect, explicitly note this
 6. Focus on concrete outcomes and measurable impacts where possible
 
-Format your response with clear sections and use bullet points or numbered lists where appropriate to enhance readability.
+Important!: Format your response with clear sections and follow the exact format of the analysis steps, including all levels of bullet points. If there is no relevant data for a bullet point, say no relavant data.
 
 Terminology: in the context of this evaluation,
 a.	“OUTPUT” means products or services directly resulting from, and attributable to, implementation of the respective project. Examples of outputs are the establishment of a platform for dialogue among actors, the creation of voluntary standards or codes of conduct, the development of training curricula, and the conduct of training sessions.
