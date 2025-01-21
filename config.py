@@ -6,10 +6,19 @@ load_dotenv()
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
     
+    # App configuration
+    APP_NAME = "SII Project Assessment Tool"
+    
     # Database configuration
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'postgresql://postgres:POST50pat!@localhost/SII_Eval_Test')
-    if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
-        SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+    if DATABASE_URL:
+        # Handle Render.com's postgres:// URLs
+        SQLALCHEMY_DATABASE_URI = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    else:
+        # Local development fallback
+        SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:POST50pat!@localhost/SII_Eval_Test'
+    
+    print(f"Using Database URL: {SQLALCHEMY_DATABASE_URI}")  # Additional debugging
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
@@ -39,5 +48,3 @@ b.	“OUTCOME” means a higher-level results that the project likely contribute
 c.	“IMPACT” means mid- to long-term changes that the project likely has contributed to (or may contribute to). In the context of the Siemens Integrity Initiative, project impact relates positive changes in relation to the ability of actors to conduct 'clean business' in the targeted market(s). 
 
 """
-
-    APP_NAME = "SII Project Assessment Tool"

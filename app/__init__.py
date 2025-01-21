@@ -14,6 +14,8 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    print("Database URL:", app.config['SQLALCHEMY_DATABASE_URI'])  # Debugging line
+
     # Add template filter for newlines
     @app.template_filter('nl2br')
     def nl2br(value):
