@@ -24,7 +24,7 @@ class Config:
             print(f"Using Production DB: {SQLALCHEMY_DATABASE_URI}")
     else:
         # Local development database URL
-        DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:POST50pat!@localhost/SII_Eval_Test')
+        DATABASE_URL = 'postgresql://postgres:POST50pat!@localhost/SII_Eval_Test'
         SQLALCHEMY_DATABASE_URI = DATABASE_URL
         print(f"Using Development DB: {SQLALCHEMY_DATABASE_URI}")
     
