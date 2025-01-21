@@ -10,15 +10,17 @@ class Config:
     APP_NAME = "SII Project Assessment Tool"
     
     # Database configuration
-    DATABASE_URL = os.environ.get('DATABASE_URL')
+    DATABASE_URL = os.getenv('DATABASE_URL')  # Use getenv instead of environ.get
+    print(f"Raw DATABASE_URL: {DATABASE_URL}")  # Debug print
+    
     if DATABASE_URL:
         # Handle Render.com's postgres:// URLs
         SQLALCHEMY_DATABASE_URI = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        print(f"Using Render DB: {SQLALCHEMY_DATABASE_URI}")  # Debug print
     else:
         # Local development fallback
         SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:POST50pat!@localhost/SII_Eval_Test'
-    
-    print(f"Using Database URL: {SQLALCHEMY_DATABASE_URI}")  # Additional debugging
+        print(f"Using Local DB: {SQLALCHEMY_DATABASE_URI}")  # Debug print
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
