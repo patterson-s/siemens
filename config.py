@@ -1,7 +1,9 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env file only in development
+if os.environ.get('RENDER') is None:
+    load_dotenv()
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
@@ -10,17 +12,21 @@ class Config:
     APP_NAME = "SII Project Assessment Tool"
     
     # Database configuration
-    DATABASE_URL = os.getenv('DATABASE_URL')  # Use getenv instead of environ.get
-    print(f"Raw DATABASE_URL: {DATABASE_URL}")  # Debug print
+    IS_PRODUCTION = os.environ.get('RENDER') is not None
+    print(f"Environment: {'Production' if IS_PRODUCTION else 'Development'}")
     
-    if DATABASE_URL:
-        # Handle Render.com's postgres:// URLs
-        SQLALCHEMY_DATABASE_URI = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-        print(f"Using Render DB: {SQLALCHEMY_DATABASE_URI}")  # Debug print
+    if IS_PRODUCTION:
+        # Production database URL (from Render)
+        DATABASE_URL = os.environ.get('DATABASE_URL')
+        print(f"Production DATABASE_URL: {DATABASE_URL}")
+        if DATABASE_URL:
+            SQLALCHEMY_DATABASE_URI = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+            print(f"Using Production DB: {SQLALCHEMY_DATABASE_URI}")
     else:
-        # Local development fallback
-        SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:POST50pat!@localhost/SII_Eval_Test'
-        print(f"Using Local DB: {SQLALCHEMY_DATABASE_URI}")  # Debug print
+        # Local development database URL
+        DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:POST50pat!@localhost/SII_Eval_Test')
+        SQLALCHEMY_DATABASE_URI = DATABASE_URL
+        print(f"Using Development DB: {SQLALCHEMY_DATABASE_URI}")
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')

@@ -72,3 +72,4 @@ instance/
 uploads/
 migrations/
 .idea/
+.env

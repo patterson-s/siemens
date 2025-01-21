@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from config import Config
 from flask_migrate import Migrate
+import os
 
 # Initialize extensions
 db = SQLAlchemy()
@@ -12,7 +13,16 @@ migrate = Migrate()  # Initialize Flask-Migrate
 
 def create_app(config_class=Config):
     app = Flask(__name__)
+    
+    # Debug prints before config
+    print("Environment variables:")
+    print(f"DATABASE_URL: {os.getenv('DATABASE_URL')}")
+    
     app.config.from_object(config_class)
+    
+    # Debug prints after config
+    print("Flask config:")
+    print(f"SQLALCHEMY_DATABASE_URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
     print("Database URL:", app.config['SQLALCHEMY_DATABASE_URI'])  # Debugging line
 
