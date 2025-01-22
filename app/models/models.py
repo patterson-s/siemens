@@ -3,6 +3,7 @@ from datetime import datetime  # Ensure datetime is imported for ProjectQuestion
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash  # Add this for password hashing
 from enum import Enum
+from sqlalchemy.dialects.postgresql import ARRAY
 
 class User(UserMixin, db.Model):
     __tablename__ = 'univ_users'
@@ -106,7 +107,18 @@ class EvaluationRun(db.Model):
     total_questions = db.Column(db.Integer, nullable=False)
     status_message = db.Column(db.String(255), nullable=True)
     
+    # Remove the document_ids column and keep only the relationship
+    documents = db.relationship('Document', 
+                              secondary='univ_evaluation_documents',
+                              lazy='dynamic')
+    
     responses = db.relationship('EvaluationResponse', backref='evaluation_run', lazy=True)
+
+# Add association table for many-to-many relationship
+evaluation_documents = db.Table('univ_evaluation_documents',
+    db.Column('evaluation_id', db.Integer, db.ForeignKey('univ_evaluation_runs.id'), primary_key=True),
+    db.Column('document_id', db.Integer, db.ForeignKey('univ_documents.id'), primary_key=True)
+)
 
 class EvaluationResponse(db.Model):
     __tablename__ = 'univ_evaluation_responses'

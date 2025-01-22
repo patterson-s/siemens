@@ -20,8 +20,41 @@
 
         <div class="form-group mb-4">
             <label for="temperature">Temperature:</label>
-            <input type="number" class="form-control" id="temperature" name="temperature" value="0.2" step="0.1" min="0" max="0.5" required>
+            <input type="number" class="form-control" id="temperature" name="temperature" 
+                   value="0.2" step="0.1" min="0" max="0.5" required>
             <small class="form-text text-muted">Adjust the creativity of the responses (0.0 to 1.0).</small>
+        </div>
+
+        <!-- New Document Selection Section -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Select Documents to Include</h5>
+            </div>
+            <div class="card-body">
+                {% if project.documents %}
+                    {% for document in project.documents %}
+                    <div class="custom-control custom-checkbox mb-2">
+                        <input type="checkbox" class="custom-control-input" 
+                               id="document_{{ document.id }}" 
+                               name="selected_documents" 
+                               value="{{ document.id }}"
+                               checked>
+                        <label class="custom-control-label" for="document_{{ document.id }}">
+                            <strong>{{ document.filename }}</strong>
+                            <span class="text-muted">({{ document.document_type|replace('_', ' ')|title }})</span>
+                            <small class="text-muted d-block">
+                                Size: {{ (document.file_size / 1024)|round|int }} KB | 
+                                Type: {{ document.file_type|upper }}
+                            </small>
+                        </label>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-warning">
+                        No documents available. Please upload documents before starting an assessment.
+                    </div>
+                {% endif %}
+            </div>
         </div>
 
         <div class="card mb-4">

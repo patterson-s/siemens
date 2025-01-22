@@ -9,6 +9,13 @@
             <p><strong>Date:</strong> {{ evaluation.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
             <p><strong>Status:</strong> {{ evaluation.status.value }}</p>
             <p><strong>Model Used:</strong> {{ evaluation.model_used }}</p>
+            
+            <h6>Documents Used:</h6>
+            <ul>
+                {% for doc in evaluation.documents %}
+                    <li>{{ doc.filename }} ({{ doc.document_type|replace('_', ' ')|title }})</li>
+                {% endfor %}
+            </ul>
         </div>
     </div>
 

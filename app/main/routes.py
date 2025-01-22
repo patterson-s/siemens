@@ -170,10 +170,15 @@ def start_assessment(project_id):
     if request.method == 'POST':
         selected_model = request.form.get('model_select', Config.CLAUDE_MODEL)
         selected_questions = request.form.getlist('selected_questions')
-        temperature = float(request.form.get('temperature', 0.7))  # Get the temperature value
+        selected_documents = request.form.getlist('selected_documents')  # Get selected documents
+        temperature = float(request.form.get('temperature', 0.7))
         
         if not selected_questions:
             flash('Please select at least one question for the assessment.', 'danger')
+            return redirect(url_for('main.start_assessment', project_id=project.id))
+            
+        if not selected_documents:
+            flash('Please select at least one document for the assessment.', 'danger')
             return redirect(url_for('main.start_assessment', project_id=project.id))
         
         # Create new evaluation run
@@ -182,20 +187,25 @@ def start_assessment(project_id):
             system_prompt=Config.DEFAULT_SYSTEM_PROMPT,
             status=EvaluationStatus.IN_PROGRESS,
             model_used=selected_model,
-            total_questions=len(selected_questions)  # Store the total number of questions
+            total_questions=len(selected_questions)
         )
+        
+        # Add selected documents to the evaluation
+        selected_doc_objects = Document.query.filter(Document.id.in_(selected_documents)).all()
+        evaluation.documents.extend(selected_doc_objects)
+        
         db.session.add(evaluation)
         db.session.commit()
         
         # Start the evaluation process in a background thread
-        thread = Thread(target=run_evaluation, args=(project.id, evaluation.id, selected_questions, temperature))
+        thread = Thread(target=run_evaluation, 
+                       args=(project.id, evaluation.id, selected_questions, temperature, selected_documents))
         thread.daemon = True
         thread.start()
         
-        total_questions = len(selected_questions)
         return render_template('main/assessment_progress.html',
                              project=project, 
-                             total_questions=total_questions, 
+                             total_questions=len(selected_questions), 
                              evaluation_id=evaluation.id)
     
     # GET request - show the form
@@ -295,7 +305,7 @@ def check_assessment_progress(evaluation_id):
         'estimated_remaining': round(estimated_remaining)
     })
 
-def run_evaluation(project_id, evaluation_id, selected_question_ids, temperature):
+def run_evaluation(project_id, evaluation_id, selected_question_ids, temperature, selected_documents):
     """Run the evaluation process in the background"""
     from app import create_app
     
