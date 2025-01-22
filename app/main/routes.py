@@ -1,6 +1,6 @@
 from flask import render_template, redirect, url_for, request, flash, send_from_directory, jsonify, session, current_app
 from app.main import bp
-from app.models.models import Project, ProjectQuestion, Document, EvaluationRun, EvaluationResponse, EvaluationStatus, APILog  # Import EvaluationStatus
+from app.models.models import Project, ProjectQuestion, Document, EvaluationRun, EvaluationResponse, EvaluationStatus, APILog, ChatSession, ChatMessage, DocumentType  # Import ChatSession and ChatMessage
 from app import db  # Import the db instance
 import os
 from anthropic import Anthropic
@@ -17,6 +17,9 @@ from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationChain
+from werkzeug.utils import secure_filename
+from docx import Document as DocxDocument
+from io import BytesIO
 
 @bp.route('/')
 @bp.route('/index')
@@ -58,50 +61,68 @@ def project_details(project_id):
 
 @bp.route('/projects/<int:project_id>/upload', methods=['GET', 'POST'])
 def upload_document(project_id):
-    project = Project.query.get_or_404(project_id)  # Fetch the project by ID
+    project = Project.query.get_or_404(project_id)
+    
     if request.method == 'POST':
         if 'file' not in request.files:
-            flash('No file part', 'danger')
+            flash('No file selected', 'error')
             return redirect(request.url)
-        
+            
         file = request.files['file']
+        document_type = request.form.get('document_type')
+        
         if file.filename == '':
-            flash('No selected file', 'danger')
+            flash('No file selected', 'error')
             return redirect(request.url)
-
-        if file:
-            # Check for duplicate documents
-            existing_document = Document.query.filter_by(
-                project_id=project.id,
-                filename=file.filename
-            ).first()
-
-            if existing_document:
-                flash('A document with this name already exists for this project.', 'danger')
+            
+        if file and allowed_file(file.filename):
+            try:
+                # Get file extension
+                file_ext = file.filename.rsplit('.', 1)[1].lower()
+                
+                # Read file content and get size
+                file_content = file.read()
+                file_size = len(file_content)  # Get file size in bytes
+                
+                # Reset file pointer for content extraction
+                file.seek(0)
+                
+                # Extract text based on file type
+                if file_ext == 'pdf':
+                    content = extract_text_from_pdf(file)
+                elif file_ext == 'txt':
+                    content = file_content.decode('utf-8')
+                elif file_ext in ['doc', 'docx']:
+                    content = extract_text_from_doc(file)
+                
+                # Create new document
+                document = Document(
+                    project_id=project.id,
+                    filename=secure_filename(file.filename),
+                    file_type=file_ext,
+                    document_type=document_type,
+                    file_size=file_size,  # Add file size
+                    content=content,
+                    content_preview=content[:1000] if content else None  # Add preview
+                )
+                
+                db.session.add(document)
+                db.session.commit()
+                
+                flash('Document uploaded successfully', 'success')
+                return redirect(url_for('main.project_details', project_id=project.id))
+                
+            except Exception as e:
+                flash(f'Error processing document: {str(e)}', 'error')
                 return redirect(request.url)
-
-            # Save the file to the server
-            filename = file.filename
-            file_path = os.path.join('uploads', filename)  # Define your upload folder
-            file.save(file_path)
-
-            # Create a new Document entry
-            new_document = Document(
-                project_id=project.id,
-                filename=filename,
-                file_type=file.content_type,
-                file_size=os.path.getsize(file_path)
-            )
-            db.session.add(new_document)
-            db.session.commit()
-
-            # Process the document to extract content
-            process_document(project.id, new_document.id)  # Call the processing function
-
-            flash('Document uploaded successfully!', 'success')
-            return redirect(url_for('main.project_details', project_id=project.id))
-
-    return render_template('main/upload_document.html', project=project)  # Render the upload form 
+                
+        else:
+            flash('Invalid file type. Supported formats: PDF, TXT, DOC, DOCX', 'error')
+            return redirect(request.url)
+    
+    return render_template('main/upload_document.html', 
+                         project=project,
+                         document_types=DocumentType.choices())
 
 @bp.route('/uploads/<path:filename>')
 def uploaded_file(filename):
@@ -501,116 +522,153 @@ def api_logs():
 
 @bp.route('/ai-agent', methods=['GET', 'POST'])
 def ai_agent():
-    if 'chat_memory' not in session:
-        session['chat_memory'] = []
+    # Get or create chat session
+    session_id = session.get('chat_session_id')
+    if session_id:
+        chat_session = ChatSession.query.get(session_id)
+    else:
+        chat_session = ChatSession()
+        db.session.add(chat_session)
+        db.session.commit()
+        session['chat_session_id'] = chat_session.id
     
     if request.method == 'POST':
         user_query = request.form.get('query')
+        
+        # Create user message
+        user_message = ChatMessage(
+            session_id=chat_session.id,
+            role='user',
+            content=user_query
+        )
+        db.session.add(user_message)
         
         # Create SQLDatabase instance
         db_uri = current_app.config['SQLALCHEMY_DATABASE_URI']
         sql_db = SQLDatabase.from_uri(db_uri)
         
-        # Initialize the LLM with the correct wrapper
+        # Initialize the LLM
         llm = ChatAnthropic(
-            model="claude-3-5-sonnet-latest",
+            model="claude-3-sonnet-20240229",
             anthropic_api_key=Config.CLAUDE_API_KEY,
-            temperature=0.7,
+            temperature=0.2,
             max_tokens=4000
         )
-        
-        # Create memory
-        memory = ConversationBufferMemory(
-            memory_key="chat_history",
-            return_messages=True
-        )
-        
-        # Load previous conversation
-        for message in session['chat_memory']:
-            memory.chat_memory.add_message(message)
-        
-        # Create the toolkit and agent
-        toolkit = SQLDatabaseToolkit(db=sql_db, llm=llm)
         
         try:
             agent = create_sql_agent(
                 llm=llm,
-                toolkit=toolkit,
+                toolkit=SQLDatabaseToolkit(db=sql_db, llm=llm),
                 agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-                verbose=True,
-                memory=memory
+                verbose=True
             )
             
-            # Define the schema information
-            schema_info = """
-            The database contains evaluation responses for project assessments.
-            Key tables:
-            - univ_evaluation_responses: Contains responses to assessment questions
-            - univ_evaluation_runs: Contains information about assessment runs
-            - univ_projects: Contains project details including:
-            - univ_project_questions: Contains the assessment questions including:
-                * question: The full text of the assessment question (text, required)
-                * name: Short identifier/name for the question (string[50], required)
+            # Execute the agent and capture the response
+            response = agent.run(user_query)
             
-            Relationships:
-            - evaluation_responses.evaluation_run_id -> evaluation_runs.id
-            - evaluation_runs.project_id -> projects.id
-            - evaluation_responses.question_id -> project_questions.id
-            """
+            # Create assistant message
+            assistant_message = ChatMessage(
+                session_id=chat_session.id,
+                role='assistant',
+                content=response
+            )
+            db.session.add(assistant_message)
             
-            # Create the full prompt for the agent with more explicit instructions
-            prompt = f"""
-            You are an AI analyst examining project evaluation data.
+            # Update session title if it's the first message
+            if not chat_session.title:
+                chat_session.title = user_query[:50] + "..."
             
-            Database Schema Information:
-            {schema_info}
+            db.session.commit()
             
-            Previous context: {memory.chat_memory.messages}
+            # Get all messages for this session
+            messages = ChatMessage.query.filter_by(session_id=chat_session.id).order_by(ChatMessage.created_at).all()
             
-            User Question: {user_query}
-            
-            Please follow these steps in your response:
-            1. Write and execute an SQL query to get the relevant data
-            2. Show the actual query results (including specific values, numbers, text)
-            3. Then provide your analysis of those results
-            
-            Important: Make sure to include the actual data values in your response, not just descriptions of what you queried.
-            """
-            
-            try:
-                response = agent.run(prompt)
-            except Exception as e:
-                error_msg = str(e)
-                if "OUTPUT_PARSING_FAILURE" in error_msg:
-                    # Extract just the response part without the error message
-                    start = error_msg.find('`') + 1
-                    end = error_msg.rfind('`')
-                    if start > 0 and end > start:
-                        response = error_msg[start:end].strip()
-                    else:
-                        raise e
-                else:
-                    raise e
-            
-            # Update session memory
-            session['chat_memory'].append({"role": "user", "content": user_query})
-            session['chat_memory'].append({"role": "assistant", "content": response})
-            
-            # Clean and format the response
-            formatted_response = response.replace('handle_parsing_errors=True` to the AgentExecutor. This is the error: Could not parse LLM output: `', '')
-            formatted_response = formatted_response.replace('\n', '<br>')
-            
-            return render_template('main/ai_agent.html', 
-                                response=formatted_response,
-                                query=user_query,
-                                chat_history=session['chat_memory'])
+            return render_template('main/ai_agent.html',
+                                response=response,
+                                chat_history=messages,
+                                current_session=chat_session,
+                                all_sessions=ChatSession.query.order_by(ChatSession.created_at.desc()).all())
                                 
         except Exception as e:
+            db.session.rollback()
             flash(f'Error processing query: {str(e)}', 'error')
-            return render_template('main/ai_agent.html', 
-                                response=None,
-                                chat_history=session['chat_memory'])
+            return redirect(url_for('main.ai_agent'))
     
-    return render_template('main/ai_agent.html', 
+    # Get all messages for this session
+    messages = ChatMessage.query.filter_by(session_id=chat_session.id).order_by(ChatMessage.created_at).all()
+    
+    return render_template('main/ai_agent.html',
                          response=None,
-                         chat_history=session.get('chat_memory', [])) 
+                         chat_history=messages,
+                         current_session=chat_session,
+                         all_sessions=ChatSession.query.order_by(ChatSession.created_at.desc()).all())
+
+@bp.route('/ai-agent/new-session')
+def new_chat_session():
+    session.pop('chat_session_id', None)
+    return redirect(url_for('main.ai_agent'))
+
+@bp.route('/ai-agent/session/<int:session_id>')
+def load_chat_session(session_id):
+    chat_session = ChatSession.query.get_or_404(session_id)
+    session['chat_session_id'] = chat_session.id
+    return redirect(url_for('main.ai_agent')) 
+
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'pdf', 'txt', 'doc', 'docx'}
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS 
+
+def extract_text_from_pdf(file):
+    """Extract text from a PDF file"""
+    try:
+        with pdfplumber.open(file) as pdf:
+            text = []
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text.append(page_text)
+                    
+                # Also extract text from tables
+                for table in page.extract_tables():
+                    table_text = []
+                    for row in table:
+                        row_text = [cell.strip() if cell else '' for cell in row]
+                        if any(row_text):  # Only add non-empty rows
+                            table_text.append(" | ".join(filter(None, row_text)))
+                    if table_text:
+                        text.append("\n".join(table_text))
+            
+            return "\n\n".join(text)
+    except Exception as e:
+        raise Exception(f"Error processing PDF file: {str(e)}")
+
+def extract_text_from_doc(file):
+    """Extract text from a DOC/DOCX file"""
+    # Save the uploaded file object to a BytesIO object
+    doc_bytes = BytesIO(file.read())
+    
+    try:
+        # Open the document using python-docx
+        doc = DocxDocument(doc_bytes)
+        
+        # Extract text from paragraphs
+        text = []
+        for paragraph in doc.paragraphs:
+            if paragraph.text.strip():  # Only add non-empty paragraphs
+                text.append(paragraph.text)
+        
+        # Extract text from tables
+        for table in doc.tables:
+            for row in table.rows:
+                row_text = []
+                for cell in row.cells:
+                    if cell.text.strip():  # Only add non-empty cells
+                        row_text.append(cell.text.strip())
+                if row_text:  # Only add non-empty rows
+                    text.append(" | ".join(row_text))
+        
+        return "\n".join(text)
+        
+    except Exception as e:
+        raise Exception(f"Error processing DOC/DOCX file: {str(e)}") 

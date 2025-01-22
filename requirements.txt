@@ -13,3 +13,4 @@ langchain
 langchain-community
 langchain-anthropic
 gunicorn
+python-docx==1.0.1

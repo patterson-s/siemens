@@ -23,17 +23,27 @@ class User(UserMixin, db.Model):
     def is_admin(self):
         return self.role == 'admin'
 
+class DocumentType(str, Enum):
+    EXTERNAL_EVALUATION = "external_evaluation"
+    FINAL_PROJECT_REPORT = "final_project_report"
+    
+    @classmethod
+    def choices(cls):
+        return [(choice.value, choice.value.replace('_', ' ').title()) 
+                for choice in cls]
+
 class Document(db.Model):
     __tablename__ = 'univ_documents'
-
+    
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, db.ForeignKey('univ_projects.id'), nullable=False)
     filename = db.Column(db.String(255), nullable=False)
-    file_type = db.Column(db.String(50), nullable=False)  # e.g., 'pdf', 'txt', 'csv'
+    file_type = db.Column(db.String(50), nullable=False)
+    document_type = db.Column(db.String(50), nullable=False, default=DocumentType.EXTERNAL_EVALUATION.value)
     file_size = db.Column(db.Integer, nullable=False)  # size in bytes
-    content = db.Column(db.Text, nullable=True)  # For text-based files
+    content = db.Column(db.Text)
     content_preview = db.Column(db.String(1000), nullable=True)  # Short preview of content
-    upload_date = db.Column(db.DateTime, default=datetime.utcnow)  # Date of upload
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class ProjectQuestion(db.Model):
     __tablename__ = 'univ_project_questions'
@@ -133,3 +143,24 @@ class APILog(db.Model):
     project = db.relationship('Project', backref='api_logs')
     evaluation = db.relationship('EvaluationRun', backref='api_logs')
     question = db.relationship('ProjectQuestion', backref='api_logs')
+
+class ChatSession(db.Model):
+    __tablename__ = 'univ_chat_sessions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    title = db.Column(db.String(255))  # Will be set to first few words of first message
+    messages = db.relationship('ChatMessage', backref='session', lazy=True, cascade='all, delete-orphan')
+
+class ChatMessage(db.Model):
+    __tablename__ = 'univ_chat_messages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('univ_chat_sessions.id'), nullable=False)
+    role = db.Column(db.String(50), nullable=False)  # 'user' or 'assistant'
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Optional: Link to related database queries/results
+    sql_query = db.Column(db.Text)
+    query_results = db.Column(db.Text)  # Store as JSON

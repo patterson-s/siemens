@@ -12,9 +12,12 @@
                     <ul>
                         {% for document in project.documents %}
                             <li>
-                                {{ document.filename }} ({{ document.file_type }})
-                                <form action="{{ url_for('main.delete_document', project_id=project.id, document_id=document.id) }}" method="POST" style="display:inline;">
-                                    <button type="submit" class="btn btn-link text-danger" onclick="return confirm('Are you sure you want to delete this document?');">X</button>
+                                {{ document.filename }} 
+                                ({{ document.document_type|replace('_', ' ')|title }})
+                                <form action="{{ url_for('main.delete_document', project_id=project.id, document_id=document.id) }}" 
+                                      method="POST" style="display:inline;">
+                                    <button type="submit" class="btn btn-link text-danger" 
+                                            onclick="return confirm('Are you sure you want to delete this document?');">X</button>
                                 </form>
                             </li>
                         {% else %}

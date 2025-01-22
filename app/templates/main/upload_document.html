@@ -4,10 +4,25 @@
     <h1 class="my-4">Upload Document for {{ project.name }}</h1>
     <form method="POST" enctype="multipart/form-data">
         <div class="form-group">
-            <label for="file">Select file to upload</label>
-            <input type="file" class="form-control-file" id="file" name="file" required>
+            <label for="document_type">Document Type</label>
+            <select class="form-control" id="document_type" name="document_type" required>
+                {% for value, label in document_types %}
+                    <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+            <small class="form-text text-muted">Select the type of document you are uploading.</small>
         </div>
-        <button type="submit" class="btn btn-primary">Upload</button>
-        <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-secondary">Cancel</a>
+        
+        <div class="form-group">
+            <label for="file">Select Document File</label>
+            <input type="file" class="form-control-file" id="file" name="file" 
+                   accept=".pdf,.txt,.doc,.docx" required>
+            <small class="form-text text-muted">Supported formats: PDF, TXT, DOC, DOCX</small>
+        </div>
+        
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Upload Document</button>
+            <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-secondary">Cancel</a>
+        </div>
     </form>
 {% endblock %} 
