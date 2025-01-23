@@ -50,6 +50,9 @@ Key Instructions:
 
 Important!: Format your response with clear sections and follow the exact format of the analysis steps, including all levels of bullet points. If there is no relevant data for a bullet point, say no relavant data.
 
+There may be two document provided.  One will be of the type "external_evaluation" and the other "final_project_report". The final project report was prepared by the organization running the project and will have information and details according to their perspective. The external evaluation is an evaluation of the final project report by an external evaluator and will have information and details according to that perspective. To answer the questions in this assessment process, you should give the greatest weight to the external evaluation and use the final project report to provide addiitional details that may be relevant but which were not present in the external evaluation. .
+
+
 Terminology: in the context of this evaluation,
 a.	“OUTPUT” means products or services directly resulting from, and attributable to, implementation of the respective project. Examples of outputs are the establishment of a platform for dialogue among actors, the creation of voluntary standards or codes of conduct, the development of training curricula, and the conduct of training sessions.
 b.	“OUTCOME” means a higher-level results that the project likely contributed to through its outputs. While direct causation may be difficult to prove, there should be a logical connection between project activities and the outcome. Outcomes typically relate to changes in behaviours, practices, or rules/norms that govern the actions of relevant stakeholders. Examples of outcomes include strengthened/new laws or national frameworks, increased private sector actors' compliance with voluntary standards or codes of conduct, or professional applying anti-corruption knowledge and skills gained during trainings in their work. 

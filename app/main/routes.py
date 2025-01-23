@@ -42,17 +42,25 @@ def questions():
 
 @bp.route('/questions/edit/<int:question_id>', methods=['GET', 'POST'])
 def edit_question(question_id):
-    question = ProjectQuestion.query.get_or_404(question_id)  # Fetch the question by ID
+    question = ProjectQuestion.query.get_or_404(question_id)
+    
     if request.method == 'POST':
-        question.question = request.form['question']  # Update the question field
-        question.name = request.form['name']  # Update the name field
-        question.prompt = request.form['prompt']  # Update the prompt field
-        question.order = request.form['order']  # Update the order field
-        db.session.commit()  # Save changes to the database
-        flash('Project question updated successfully!', 'success')
-        return redirect(url_for('main.questions'))  # Redirect to the questions list
+        try:
+            question.question = request.form['question']
+            question.name = request.form['name']
+            question.prompt = request.form['prompt']
+            question.order = int(request.form['order'])  # Convert to integer
+            db.session.commit()
+            flash('Project question updated successfully!', 'success')
+            return redirect(url_for('main.questions'))
+        except ValueError:
+            flash('Invalid order value. Please enter a number.', 'danger')
+            return redirect(request.url)
+        except Exception as e:
+            flash(f'Error updating question: {str(e)}', 'danger')
+            return redirect(request.url)
 
-    return render_template('main/edit_question.html', question=question)  # Render the edit form 
+    return render_template('main/edit_question.html', question=question)
 
 @bp.route('/projects/<int:project_id>')
 def project_details(project_id):
@@ -308,39 +316,39 @@ def check_assessment_progress(evaluation_id):
 def run_evaluation(project_id, evaluation_id, selected_question_ids, temperature, selected_documents):
     """Run the evaluation process in the background"""
     from app import create_app
-    
     app = create_app()
     
     with app.app_context():
         try:
             evaluation = EvaluationRun.query.get(evaluation_id)
             project = Project.query.get(project_id)
-            anthropic = Anthropic(api_key=Config.CLAUDE_API_KEY)
-            
-            # Track tokens used in this evaluation
-            total_tokens = 0
-            evaluation.status_message = None  # Add this field to store status messages
-            db.session.commit()
             
             # Set rate limit based on model
             RATE_LIMITS = {
                 'claude-3-opus-latest': 40000,
-                'claude-3-5-sonnet-latest': 80000,
-                'claude-3-5-haiku-latest': 100000
+                'claude-3-sonnet-latest': 80000,
+                'claude-3-haiku-latest': 100000
             }
-            rate_limit = RATE_LIMITS.get(evaluation.model_used, 100000)  # Default to 100k if unknown
+            rate_limit = RATE_LIMITS.get(evaluation.model_used, 100000)
             buffer_limit = rate_limit - 5000  # Leave 5k token safety margin
             
-            # Get tokens used in last minute across all evaluations
-            def get_recent_tokens():
-                one_minute_ago = datetime.utcnow() - timedelta(minutes=1)
-                return db.session.query(
-                    db.func.sum(APILog.input_tokens)
-                ).filter(
-                    APILog.start_time >= one_minute_ago,
-                    APILog.success == True
-                ).scalar() or 0
+            # Get selected documents with their types
+            documents = Document.query.filter(Document.id.in_(selected_documents)).all()
             
+            # Build context from documents
+            document_contexts = []
+            for doc in documents:
+                doc_type = doc.document_type.replace('_', ' ').title()
+                doc_context = f"\n=== {doc_type}: {doc.filename} ===\n{doc.content}\n"
+                document_contexts.append(doc_context)
+            
+            # Combine all document contexts
+            combined_context = "\n".join(document_contexts)
+            
+            # Initialize Anthropic client
+            client = Anthropic(api_key=Config.CLAUDE_API_KEY)
+            
+            # Get questions in order
             questions = ProjectQuestion.query\
                 .filter(ProjectQuestion.id.in_(selected_question_ids))\
                 .order_by(ProjectQuestion.order)\
@@ -354,49 +362,57 @@ def run_evaluation(project_id, evaluation_id, selected_question_ids, temperature
                     print(wait_message)
                     evaluation.status_message = wait_message
                     db.session.commit()
-                    time.sleep(60)  # Wait for a minute
+                    time.sleep(60)
                     evaluation.status_message = None
                     db.session.commit()
                 
-                # Create API log entry
-                api_log = APILog(
-                    project_id=project_id,
-                    evaluation_id=evaluation_id,
-                    question_id=question.id,
-                    model_used=evaluation.model_used,
-                    start_time=datetime.utcnow(),
-                    project_name=project.name,
-                    question_name=question.name
-                )
-                db.session.add(api_log)
-                db.session.commit()
-                
                 try:
-                    documents_content = "\n\n".join([doc.content for doc in project.documents if doc.content])
+                    # Create API log entry
+                    api_log = APILog(
+                        project_id=project.id,
+                        evaluation_id=evaluation.id,
+                        question_id=question.id,
+                        model_used=evaluation.model_used,
+                        project_name=project.name,
+                        question_name=question.name,
+                        start_time=datetime.utcnow()
+                    )
+                    db.session.add(api_log)
+                    db.session.commit()
                     
-                    response = anthropic.messages.create(
-                        model=evaluation.model_used,
-                        max_tokens=4096,
-                        temperature=temperature,
-                        system=evaluation.system_prompt,
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": f"Document contents:\n{documents_content}\n\nQuestion: {question.prompt}"
-                            }
-                        ]
+                    # Build the prompt with document context
+                    system_prompt = (
+                        f"{Config.DEFAULT_SYSTEM_PROMPT}\n\n"
+                        f"Project Context:\n"
+                        f"Project Name: {project.name}\n"
+                        f"Project Objectives: {project.key_project_objectives}\n\n"
+                        f"Available Documents:\n{combined_context}\n\n"
+                        f"Question: {question.question}\n"
+                        f"Detailed Instructions: {question.prompt}"
                     )
                     
-                    # Update token tracking
-                    total_tokens += response.usage.input_tokens
+                    # Print the complete prompt
+                    print("\n=== COMPLETE PROMPT ===")
+                    print(system_prompt)
+                    print("=== END PROMPT ===\n")
                     
-                    # Update API log with success and token counts
+                    # Call Claude API
+                    response = client.messages.create(
+                        model=evaluation.model_used,
+                        temperature=temperature,
+                        max_tokens=4000,
+                        system=system_prompt,
+                        messages=[{"role": "user", "content": "Please provide your analysis based on the available documents."}]
+                    )
+                    
+                    # Update API log with token usage
+                    total_tokens = response.usage.input_tokens + response.usage.output_tokens
                     api_log.input_tokens = response.usage.input_tokens
                     api_log.output_tokens = response.usage.output_tokens
                     api_log.success = True
                     api_log.end_time = datetime.utcnow()
                     
-                    # Save the response
+                    # Create evaluation response
                     evaluation_response = EvaluationResponse(
                         evaluation_run_id=evaluation.id,
                         question_id=question.id,
@@ -407,22 +423,21 @@ def run_evaluation(project_id, evaluation_id, selected_question_ids, temperature
                     
                     # Adaptive delay based on token usage
                     if total_tokens > 30000:
-                        time.sleep(5)  # Longer delay when using lots of tokens
+                        time.sleep(5)
                     else:
-                        time.sleep(2)  # Normal delay
+                        time.sleep(2)
                     
                 except Exception as e:
                     error_msg = str(e)
                     print(f"Error processing question {question.id}: {error_msg}")
                     
-                    # Update API log with error
                     api_log.success = False
                     api_log.error_message = error_msg
                     api_log.end_time = datetime.utcnow()
                     db.session.commit()
                     
-                    if "rate_limit_error" in error_msg:
-                        print("Rate limit hit, waiting 60 seconds before continuing...")
+                    if "rate_limit_error" in error_msg.lower():
+                        print("Rate limit hit, waiting 60 seconds...")
                         time.sleep(60)
                         continue
                     else:
@@ -439,6 +454,16 @@ def run_evaluation(project_id, evaluation_id, selected_question_ids, temperature
             if evaluation:
                 evaluation.status = EvaluationStatus.FAILED
                 db.session.commit()
+
+def get_recent_tokens():
+    """Get total tokens used in the last minute"""
+    one_minute_ago = datetime.utcnow() - timedelta(minutes=1)
+    return db.session.query(
+        db.func.sum(APILog.input_tokens)
+    ).filter(
+        APILog.start_time >= one_minute_ago,
+        APILog.success == True
+    ).scalar() or 0
 
 @bp.route('/projects/<int:project_id>/delete_assessment/<int:evaluation_id>', methods=['POST'])
 def delete_assessment(project_id, evaluation_id):
@@ -622,7 +647,7 @@ def new_chat_session():
 def load_chat_session(session_id):
     chat_session = ChatSession.query.get_or_404(session_id)
     session['chat_session_id'] = chat_session.id
-    return redirect(url_for('main.ai_agent')) 
+    return redirect(url_for('main.ai_agent'))
 
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'pdf', 'txt', 'doc', 'docx'}
