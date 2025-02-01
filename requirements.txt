@@ -16,4 +16,4 @@ langchain-anthropic
 langchain-openai
 gunicorn
 python-docx==1.0.1
-python-docx2txt==0.8.1
+docx2txt==0.8
