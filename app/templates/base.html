@@ -85,15 +85,15 @@
                 <ul class="navbar-nav mr-auto">
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'main.projects' }}" 
-                           href="{{ url_for('main.projects') }}">Projects</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'main.questions' }}" 
-                           href="{{ url_for('main.questions') }}">Questions</a>
+                           href="{{ url_for('main.projects') }}">View Projects</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'main.ai_agent' }}" 
                            href="{{ url_for('main.ai_agent') }}">Query Engine</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'main.questions' }}" 
+                           href="{{ url_for('main.questions') }}">ManageQuestions</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'main.admin_projects' }}" 

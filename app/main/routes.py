@@ -26,7 +26,7 @@ from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import SQLDatabaseToolkit
 from langchain.agents.format_scratchpad import format_to_openai_functions
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, text
 
 @bp.route('/')
 @bp.route('/index')
@@ -183,15 +183,33 @@ def upload_document(project_id):
 def uploaded_file(filename):
     return send_from_directory('uploads', filename) 
 
-@bp.route('/projects/<int:project_id>/delete_document/<int:document_id>', methods=['POST'])
+@bp.route('/projects/<int:project_id>/documents/<int:document_id>/delete', methods=['POST'])
 @login_required
-@admin_required
 def delete_document(project_id, document_id):
-    document = Document.query.get_or_404(document_id)  # Fetch the document by ID
-    db.session.delete(document)  # Delete the document from the database
-    db.session.commit()  # Commit the changes
-    flash('Document deleted successfully!', 'success')
-    return redirect(url_for('main.project_details', project_id=project_id))  # Redirect back to project details 
+    try:
+        from sqlalchemy import text
+        
+        # First check if document exists and belongs to this project
+        document = Document.query.filter_by(id=document_id, project_id=project_id).first_or_404()
+        
+        # Remove any references in evaluation_documents
+        db.session.execute(
+            text('DELETE FROM univ_evaluation_documents WHERE document_id = :doc_id'),
+            {'doc_id': document_id}
+        )
+        
+        # Delete the document
+        db.session.delete(document)
+        db.session.commit()
+        
+        flash('Document deleted successfully.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting document: {str(e)}', 'danger')
+        print(f"Error deleting document: {str(e)}")
+    
+    return redirect(url_for('main.project_details', project_id=project_id))
 
 @bp.route('/api/projects/<int:project_id>/process_document/<int:document_id>', methods=['POST'])
 def process_document(project_id, document_id):
