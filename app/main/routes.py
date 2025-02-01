@@ -9,7 +9,7 @@ from threading import Thread
 import pdfplumber
 import time
 from datetime import datetime, timedelta  # Add timedelta to the import
-from langchain.agents import create_sql_agent
+from langchain.agents import create_sql_agent, AgentExecutor
 from langchain.agents.agent_types import AgentType
 from langchain.sql_database import SQLDatabase
 from langchain_anthropic import ChatAnthropic
@@ -20,13 +20,37 @@ from langchain.chains import ConversationChain
 from werkzeug.utils import secure_filename
 from docx import Document as DocxDocument
 from io import BytesIO
+from flask_login import login_required, current_user
+from app.auth.decorators import admin_required
+from langchain_community.utilities import SQLDatabase
+from langchain_community.agent_toolkits import SQLDatabaseToolkit
+from langchain.agents.format_scratchpad import format_to_openai_functions
+from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
+from sqlalchemy import desc, func
 
 @bp.route('/')
 @bp.route('/index')
+@login_required
 def index():
-    return render_template('main/index.html', title=Config.APP_NAME)
+    # Get projects sorted by latest assessment date
+    projects = Project.query\
+        .outerjoin(EvaluationRun)\
+        .group_by(Project)\
+        .order_by(
+            # Sort by latest assessment date (nulls last)
+            func.max(EvaluationRun.created_at).desc().nullslast(),
+            # Secondary sort by round and name for consistent ordering
+            Project.name_of_round.desc(),
+            Project.name
+        )\
+        .all()
+    
+    return render_template('main/index.html', 
+                         title=Config.APP_NAME,
+                         projects=projects)
 
 @bp.route('/projects')
+@login_required
 def projects():
     # Query only active projects from the database
     active_projects = Project.query.filter_by(active=True).all()
@@ -35,12 +59,15 @@ def projects():
                          title='Projects - ' + Config.APP_NAME)
 
 @bp.route('/questions')
+@login_required
 def questions():
     # Query all project questions from the database
     all_questions = ProjectQuestion.query.all()
     return render_template('main/questions.html', questions=all_questions, title='Questions - ' + Config.APP_NAME)
 
 @bp.route('/questions/edit/<int:question_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
 def edit_question(question_id):
     question = ProjectQuestion.query.get_or_404(question_id)
     
@@ -63,11 +90,13 @@ def edit_question(question_id):
     return render_template('main/edit_question.html', question=question)
 
 @bp.route('/projects/<int:project_id>')
+@login_required
 def project_details(project_id):
     project = Project.query.get_or_404(project_id)  # Fetch the project by ID
     return render_template('main/project_details.html', project=project)  # Render the project details template 
 
 @bp.route('/projects/<int:project_id>/upload', methods=['GET', 'POST'])
+@login_required
 def upload_document(project_id):
     project = Project.query.get_or_404(project_id)
     
@@ -103,25 +132,43 @@ def upload_document(project_id):
                 elif file_ext in ['doc', 'docx']:
                     content = extract_text_from_doc(file)
                 
+                if not content:
+                    raise ValueError("No content extracted from file")
+
+                print(f"Extracted content length: {len(content)}")  # Debug log
+                
                 # Create new document
                 document = Document(
                     project_id=project.id,
                     filename=secure_filename(file.filename),
                     file_type=file_ext,
                     document_type=document_type,
-                    file_size=file_size,  # Add file size
-                    content=content,
-                    content_preview=content[:1000] if content else None  # Add preview
+                    file_size=file_size,
+                    content_preview=content[:1000] if content else None
                 )
+                
+                # Set encrypted content with error checking
+                try:
+                    document.set_content(content)
+                    print(f"Content encrypted successfully")  # Debug log
+                except Exception as e:
+                    raise ValueError(f"Encryption failed: {str(e)}")
                 
                 db.session.add(document)
                 db.session.commit()
+                
+                # Verify content was saved
+                saved_doc = Document.query.get(document.id)
+                if not saved_doc._content:
+                    raise ValueError("Content was not saved to database")
                 
                 flash('Document uploaded successfully', 'success')
                 return redirect(url_for('main.project_details', project_id=project.id))
                 
             except Exception as e:
+                db.session.rollback()
                 flash(f'Error processing document: {str(e)}', 'error')
+                print(f"Upload error: {str(e)}")  # Debug log
                 return redirect(request.url)
                 
         else:
@@ -137,6 +184,8 @@ def uploaded_file(filename):
     return send_from_directory('uploads', filename) 
 
 @bp.route('/projects/<int:project_id>/delete_document/<int:document_id>', methods=['POST'])
+@login_required
+@admin_required
 def delete_document(project_id, document_id):
     document = Document.query.get_or_404(document_id)  # Fetch the document by ID
     db.session.delete(document)  # Delete the document from the database
@@ -173,6 +222,7 @@ def process_document(project_id, document_id):
         return jsonify({'error': str(e)}), 500
 
 @bp.route('/projects/<int:project_id>/start_assessment', methods=['GET', 'POST'])
+@login_required
 def start_assessment(project_id):
     project = Project.query.get_or_404(project_id)
     if request.method == 'POST':
@@ -224,6 +274,7 @@ def start_assessment(project_id):
                          questions=questions)
 
 @bp.route('/projects/<int:project_id>/evaluation/<int:evaluation_id>')
+@login_required
 def view_assessment(project_id, evaluation_id):
     project = Project.query.get_or_404(project_id)
     evaluation = EvaluationRun.query.get_or_404(evaluation_id)
@@ -273,6 +324,7 @@ def add_test_questions():
     return redirect(url_for('main.questions')) 
 
 @bp.route('/projects/assessment_progress/<int:evaluation_id>')
+@login_required
 def check_assessment_progress(evaluation_id):
     evaluation = EvaluationRun.query.get_or_404(evaluation_id)
     responses = EvaluationResponse.query.filter_by(evaluation_run_id=evaluation_id).all()
@@ -323,49 +375,54 @@ def run_evaluation(project_id, evaluation_id, selected_question_ids, temperature
             evaluation = EvaluationRun.query.get(evaluation_id)
             project = Project.query.get(project_id)
             
-            # Set rate limit based on model
-            RATE_LIMITS = {
-                'claude-3-opus-latest': 40000,
-                'claude-3-sonnet-latest': 80000,
-                'claude-3-haiku-latest': 100000
-            }
-            rate_limit = RATE_LIMITS.get(evaluation.model_used, 100000)
-            buffer_limit = rate_limit - 5000  # Leave 5k token safety margin
-            
             # Get selected documents with their types
             documents = Document.query.filter(Document.id.in_(selected_documents)).all()
             
-            # Build context from documents
+            # Build context from documents with caching instruction
             document_contexts = []
             for doc in documents:
                 doc_type = doc.document_type.replace('_', ' ').title()
-                doc_context = f"\n=== {doc_type}: {doc.filename} ===\n{doc.content}\n"
-                document_contexts.append(doc_context)
+                # Use get_content() instead of accessing content directly
+                content = doc.get_content()
+                if content:  # Only add if content was successfully decrypted
+                    doc_context = f"\n=== {doc_type}: {doc.filename} ===\n{content}\n"
+                    document_contexts.append(doc_context)
+                else:
+                    print(f"Warning: Could not decrypt content for document {doc.id}: {doc.filename}")
             
-            # Combine all document contexts
-            combined_context = "\n".join(document_contexts)
+            if not document_contexts:
+                raise ValueError("No readable document content found")
+
+            # Combine all document contexts with instruction
+            file_instruction = ("The following content is from project documents. "
+                              "Use this information when responding to questions. "
+                              "Reference specific documents when citing information:\n\n")
+            combined_context = file_instruction + "\n".join(document_contexts)
             
-            # Initialize Anthropic client
-            client = Anthropic(api_key=Config.CLAUDE_API_KEY)
+            # Initialize Anthropic client with caching headers
+            client = Anthropic(
+                api_key=Config.CLAUDE_API_KEY,
+                default_headers={
+                    "anthropic-version": "2023-06-01",
+                    "anthropic-beta": "prompt-caching-2024-07-31"
+                }
+            )
             
-            # Get questions in order
-            questions = ProjectQuestion.query\
-                .filter(ProjectQuestion.id.in_(selected_question_ids))\
-                .order_by(ProjectQuestion.order)\
-                .all()
+            # Create the system content with caching
+            system = [
+                {
+                    "type": "text",
+                    "text": Config.DEFAULT_SYSTEM_PROMPT
+                },
+                {
+                    "type": "text",
+                    "text": combined_context,
+                    "cache_control": {"type": "ephemeral"}
+                }
+            ]
             
-            for question in questions:
-                # Check rate limit before proceeding
-                recent_tokens = get_recent_tokens()
-                if recent_tokens > buffer_limit:
-                    wait_message = f"Rate limit approaching ({recent_tokens:,}/{rate_limit:,}). Pausing for 60 seconds..."
-                    print(wait_message)
-                    evaluation.status_message = wait_message
-                    db.session.commit()
-                    time.sleep(60)
-                    evaluation.status_message = None
-                    db.session.commit()
-                
+            # Process each question
+            for question in ProjectQuestion.query.filter(ProjectQuestion.id.in_(selected_question_ids)).order_by(ProjectQuestion.order):
                 try:
                     # Create API log entry
                     api_log = APILog(
@@ -380,35 +437,39 @@ def run_evaluation(project_id, evaluation_id, selected_question_ids, temperature
                     db.session.add(api_log)
                     db.session.commit()
                     
-                    # Build the prompt with document context
-                    system_prompt = (
-                        f"{Config.DEFAULT_SYSTEM_PROMPT}\n\n"
-                        f"Project Context:\n"
-                        f"Project Name: {project.name}\n"
-                        f"Project Objectives: {project.key_project_objectives}\n\n"
-                        f"Available Documents:\n{combined_context}\n\n"
-                        f"Question: {question.question}\n"
-                        f"Detailed Instructions: {question.prompt}"
-                    )
-                    
-                    # Print the complete prompt
-                    print("\n=== COMPLETE PROMPT ===")
-                    print(system_prompt)
-                    print("=== END PROMPT ===\n")
-                    
                     # Call Claude API
                     response = client.messages.create(
                         model=evaluation.model_used,
                         temperature=temperature,
                         max_tokens=4000,
-                        system=system_prompt,
-                        messages=[{"role": "user", "content": "Please provide your analysis based on the available documents."}]
+                        system=system,
+                        messages=[{
+                            "role": "user",
+                            "content": f"""
+Project Context:
+Project Name: {project.name}
+Project Objectives: {project.key_project_objectives}
+
+Question: {question.question}
+Detailed Instructions: {question.prompt}
+
+Please provide your analysis based on the available documents."""
+                        }]
                     )
                     
-                    # Update API log with token usage
+                    # Update API log with token usage and cost
                     total_tokens = response.usage.input_tokens + response.usage.output_tokens
                     api_log.input_tokens = response.usage.input_tokens
                     api_log.output_tokens = response.usage.output_tokens
+                    api_log.cache_tokens = len(combined_context.split())  # Approximate token count for cached content
+                    
+                    # Calculate cost
+                    model_costs = Config.CLAUDE_COSTS.get(evaluation.model_used, Config.CLAUDE_COSTS['claude-3-haiku-20240307'])
+                    input_cost = (api_log.input_tokens / 1000) * model_costs['input']
+                    output_cost = (api_log.output_tokens / 1000) * model_costs['output']
+                    cache_cost = (api_log.cache_tokens / 1000) * model_costs['cache']
+                    api_log.cost_usd = input_cost + output_cost + cache_cost
+                    
                     api_log.success = True
                     api_log.end_time = datetime.utcnow()
                     
@@ -466,6 +527,8 @@ def get_recent_tokens():
     ).scalar() or 0
 
 @bp.route('/projects/<int:project_id>/delete_assessment/<int:evaluation_id>', methods=['POST'])
+@login_required
+@admin_required
 def delete_assessment(project_id, evaluation_id):
     evaluation = EvaluationRun.query.get_or_404(evaluation_id)
     
@@ -480,6 +543,8 @@ def delete_assessment(project_id, evaluation_id):
     return redirect(url_for('main.project_details', project_id=project_id)) 
 
 @bp.route('/projects/toggle_status/<int:project_id>', methods=['POST'])
+@login_required
+@admin_required
 def toggle_project_status(project_id):
     project = Project.query.get_or_404(project_id)
     project.active = not project.active
@@ -489,6 +554,8 @@ def toggle_project_status(project_id):
     return redirect(url_for('main.projects')) 
 
 @bp.route('/admin/projects')
+@login_required
+@admin_required
 def admin_projects():
     # Query all projects, including inactive ones
     all_projects = Project.query.order_by(Project.name).all()
@@ -497,6 +564,8 @@ def admin_projects():
                          title='Manage Projects - ' + Config.APP_NAME) 
 
 @bp.route('/admin/api-logs')
+@login_required
+@admin_required
 def api_logs():
     # Get summary statistics
     total_calls = APILog.query.count()
@@ -556,6 +625,7 @@ def api_logs():
                          title='API Logs - ' + Config.APP_NAME) 
 
 @bp.route('/ai-agent', methods=['GET', 'POST'])
+@login_required
 def ai_agent():
     # Get or create chat session
     session_id = session.get('chat_session_id')
@@ -595,7 +665,46 @@ def ai_agent():
                 llm=llm,
                 toolkit=SQLDatabaseToolkit(db=sql_db, llm=llm),
                 agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-                verbose=True
+                verbose=True,
+                prefix="""You are a helpful assistant analyzing data from the Siemens Integrity Initiative database.
+
+Database Structure:
+1. univ_projects:
+   - Main project information
+   - Contains: id, name, name_of_round, file_number_db, scope, region, countries_covered
+   - integrity_partner_name: Organization implementing the project
+   - funding_amount_usd: Project funding in millions of dollars
+   - start_year, end_year: Project duration
+   - active: not used for anything related to the assessment process
+
+2. univ_evaluation_runs:
+   - Assessment records for projects
+   - Contains: id, project_id, status, created_at, model_used
+   - Links to projects through project_id
+   - status can be: pending, in_progress, completed, failed
+
+3. univ_evaluation_responses:
+   - Detailed assessment answers
+   - Contains: id, evaluation_run_id, question_id, response_text
+   - Links to evaluation_runs and project_questions
+
+4. univ_project_questions:
+   - Assessment question templates
+   - Contains: id, question, name, prompt, order
+
+Important notes about the data:
+- The funding_amount_usd field represents millions of dollars
+  For example, a value of 1.5 means $1.5 million USD
+- All monetary values should be presented in millions with proper formatting
+  For example: "$1.5 million" or "USD 1.5M"
+
+When analyzing financial data:
+1. Always convert the raw numbers to millions of dollars
+2. Use clear currency formatting (USD, $)
+3. Include "million" or "M" in the output
+4. Round to 2 decimal places when needed
+
+Please provide clear, well-formatted responses and cite the specific tables and fields used."""
             )
             
             # Execute the agent and capture the response
@@ -615,8 +724,10 @@ def ai_agent():
             
             db.session.commit()
             
-            # Get all messages for this session
-            messages = ChatMessage.query.filter_by(session_id=chat_session.id).order_by(ChatMessage.created_at).all()
+            # Get all messages for this session in reverse chronological order
+            messages = ChatMessage.query.filter_by(session_id=chat_session.id)\
+                .order_by(ChatMessage.created_at.desc())\
+                .all()
             
             return render_template('main/ai_agent.html',
                                 response=response,
@@ -629,8 +740,10 @@ def ai_agent():
             flash(f'Error processing query: {str(e)}', 'error')
             return redirect(url_for('main.ai_agent'))
     
-    # Get all messages for this session
-    messages = ChatMessage.query.filter_by(session_id=chat_session.id).order_by(ChatMessage.created_at).all()
+    # Get all messages for this session in reverse chronological order
+    messages = ChatMessage.query.filter_by(session_id=chat_session.id)\
+        .order_by(ChatMessage.created_at.desc())\
+        .all()
     
     return render_template('main/ai_agent.html',
                          response=None,

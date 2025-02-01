@@ -1,18 +1,21 @@
 from app import db  # Import the db instance
-from datetime import datetime  # Ensure datetime is imported for ProjectQuestion model
+from datetime import datetime, timedelta  # Ensure datetime is imported for ProjectQuestion model
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash  # Add this for password hashing
 from enum import Enum
 from sqlalchemy.dialects.postgresql import ARRAY
+from cryptography.fernet import Fernet
+from flask import current_app
+import logging
 
 class User(UserMixin, db.Model):
     __tablename__ = 'univ_users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     password_hash = db.Column(db.String(255))
-    role = db.Column(db.String(20), nullable=False, default='user')
-    is_appeal_writer = db.Column(db.Boolean, nullable=False, default=False)
-    is_chat_user = db.Column(db.Boolean, nullable=False, default=False)
+    is_admin = db.Column(db.Boolean, nullable=False, default=False)
+    failed_login_count = db.Column(db.Integer, default=0)
+    locked_until = db.Column(db.DateTime)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -20,9 +23,25 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-    @property
-    def is_admin(self):
-        return self.role == 'admin'
+    def is_locked(self):
+        if self.locked_until and self.locked_until > datetime.utcnow():
+            return True
+        return False
+
+    def increment_failed_login(self):
+        self.failed_login_count += 1
+        if self.failed_login_count >= 5:
+            self.locked_until = datetime.utcnow() + timedelta(hours=1)
+        db.session.commit()
+
+    def reset_failed_login(self):
+        self.failed_login_count = 0
+        self.locked_until = None
+        db.session.commit()
+
+    def __repr__(self):
+        return f'<User {self.username}>'
+
 
 class DocumentType(str, Enum):
     EXTERNAL_EVALUATION = "external_evaluation"
@@ -41,10 +60,34 @@ class Document(db.Model):
     filename = db.Column(db.String(255), nullable=False)
     file_type = db.Column(db.String(50), nullable=False)
     document_type = db.Column(db.String(50), nullable=False, default=DocumentType.EXTERNAL_EVALUATION.value)
-    file_size = db.Column(db.Integer, nullable=False)  # size in bytes
-    content = db.Column(db.Text)
-    content_preview = db.Column(db.String(1000), nullable=True)  # Short preview of content
+    file_size = db.Column(db.Integer, nullable=False)
+    _content = db.Column('content', db.Text)
+    content_preview = db.Column(db.String(1000), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def get_content(self):
+        """Decrypt and return content"""
+        if not self._content:
+            return None
+        try:
+            f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
+            return f.decrypt(self._content.encode()).decode()
+        except Exception as e:
+            logging.error(f"Decryption error: {str(e)}")
+            return None
+
+    def set_content(self, value):
+        """Encrypt and store content"""
+        if not value:
+            self._content = None
+            return
+        try:
+            f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
+            self._content = f.encrypt(value.encode()).decode()
+            return True
+        except Exception as e:
+            logging.error(f"Encryption error: {str(e)}")
+            raise ValueError(f"Could not encrypt document content: {str(e)}")
 
 class ProjectQuestion(db.Model):
     __tablename__ = 'univ_project_questions'
@@ -176,3 +219,16 @@ class ChatMessage(db.Model):
     # Optional: Link to related database queries/results
     sql_query = db.Column(db.Text)
     query_results = db.Column(db.Text)  # Store as JSON
+
+class LoginLog(db.Model):
+    __tablename__ = 'univ_login_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('univ_users.id', ondelete='SET NULL'), nullable=True)
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    success = db.Column(db.Boolean, nullable=False)
+    ip_address = db.Column(db.String(45))  # IPv6 can be up to 45 chars
+    user_agent = db.Column(db.String(255))
+    attempted_username = db.Column(db.String(64), nullable=True)
+    
+    user = db.relationship('User', backref='login_logs')

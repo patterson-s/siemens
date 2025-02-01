@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Chat History Column -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">OpenAI Query Engine</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Chat History -->
+                    <div class="chat-history mb-4" style="max-height: 500px; overflow-y: auto;">
+                        {% if chat_history %}
+                            {% for message in chat_history %}
+                                <div class="mb-3 {{ 'user-message' if message.role == 'user' else 'assistant-message' }}">
+                                    <small class="text-muted">{{ message.role|title }}:</small>
+                                    <div class="message-content">
+                                        {{ message.content | nl2br | safe }}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <!-- Query Form -->
+                    <form method="POST" class="mt-3">
+                        <div class="form-group">
+                            <label for="query">Enter your query:</label>
+                            <textarea class="form-control" id="query" name="query" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-2">Send Query</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions Column -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Chat Sessions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for session in all_sessions %}
+                            <a href="#" class="list-group-item list-group-item-action 
+                                          {% if current_session and current_session.id == session.id %}active{% endif %}">
+                                {{ session.title or 'Untitled Session' }}
+                                <small class="d-block text-muted">
+                                    {{ session.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </small>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.user-message {
+    background-color: #f8f9fa;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.assistant-message {
+    background-color: #e9ecef;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.message-content {
+    white-space: pre-wrap;
+}
+</style>
+{% endblock %} 

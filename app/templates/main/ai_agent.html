@@ -95,10 +95,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     {% if chat_history %}
                         <div class="chat-history">
                             {% for message in chat_history %}
-                                <div class="message mb-3 {% if message.role == 'user' %}user-message{% else %}assistant-message{% endif %}">
-                                    <small class="text-muted">{{ message.role|title }}:</small>
+                                <div class="message {% if message.role == 'user' %}user-message{% else %}assistant-message{% endif %}">
                                     <div class="message-content">
-                                        {{ message.content | truncate(200) }}
+                                        {{ message.content | safe }}
+                                    </div>
+                                    <div class="message-timestamp text-muted small">
+                                        {{ message.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
                                     </div>
                                 </div>
                             {% endfor %}

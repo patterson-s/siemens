@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from cryptography.fernet import Fernet
 
 # Load .env file only in development
 if os.environ.get('RENDER') is None:
@@ -9,7 +10,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
     
     # App configuration
-    APP_NAME = "SII Project Assessment Tool"
+    APP_NAME = "SII AI Assessment Engine"
     
     # Database configuration
     IS_PRODUCTION = os.environ.get('RENDER') is not None
@@ -37,6 +38,9 @@ class Config:
     }
     CLAUDE_MODEL = "claude-3-5-haiku-latest"
 
+    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+
+
     # Evaluation settings
     DEFAULT_SYSTEM_PROMPT = """You are an expert evaluator of international development projects. Your task is to analyze the provided project documentation and provide a detailed assessment based on the specific questions asked.
 
@@ -59,3 +63,26 @@ b.	“OUTCOME” means a higher-level results that the project likely contribute
 c.	“IMPACT” means mid- to long-term changes that the project likely has contributed to (or may contribute to). In the context of the Siemens Integrity Initiative, project impact relates positive changes in relation to the ability of actors to conduct 'clean business' in the targeted market(s). 
 
 """
+
+    # Claude API costs per 1K tokens (as of March 2024)
+    CLAUDE_COSTS = {
+        'claude-3-opus-20240229': {
+            'input': 0.015,     # $0.015 per 1K input tokens
+            'output': 0.075,    # $0.075 per 1K output tokens
+            'cache': 0.00375    # $0.00375 per 1K cached tokens (25% of input cost)
+        },
+        'claude-3-sonnet-20240229': {
+            'input': 0.003,     # $0.003 per 1K input tokens
+            'output': 0.015,    # $0.015 per 1K output tokens
+            'cache': 0.00075    # $0.00075 per 1K cached tokens (25% of input cost)
+        },
+        'claude-3-haiku-20240307': {
+            'input': 0.0015,    # $0.0015 per 1K input tokens
+            'output': 0.0075,   # $0.0075 per 1K output tokens
+            'cache': 0.000375   # $0.000375 per 1K cached tokens (25% of input cost)
+        }
+    }
+
+    ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')
+    if ENCRYPTION_KEY is None:
+        raise ValueError("ENCRYPTION_KEY must be set in environment variables")

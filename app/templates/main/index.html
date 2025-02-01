@@ -3,7 +3,7 @@
 {% block content %}
     <div class="jumbotron bg-white">
         <h1 class="display-4">{{ config.APP_NAME }} v1.0</h1>
-        <p class="lead">An AI-powered tool for evaluating SII project documentation.</p>
+        <p class="lead">An AI-powered tool for evaluating Siemens Integrity Initiative project documentation.</p>
         <hr class="my-4">
         <p>Get started by selecting a project to assess or review existing questions.</p>
         <div class="mt-4">
@@ -12,24 +12,44 @@
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title">Projects</h5>
-                    <p class="card-text">Browse and assess projects using advanced AI analysis.</p>
-                    <a href="{{ url_for('main.projects') }}" class="btn btn-primary">Go to Projects</a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title">Assessment Questions</h5>
-                    <p class="card-text">View and manage the questions used for project assessments.</p>
-                    <a href="{{ url_for('main.questions') }}" class="btn btn-primary">Manage Questions</a>
-                </div>
+    {% if current_user.is_authenticated %}
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Recent Project Assessments</h5>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Round</th>
+                            <th>Partner</th>
+                            <th>Latest Assessment</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for project in projects %}
+                        <tr>
+                            <td>{{ project.name }}</td>
+                            <td>{{ project.name_of_round }}</td>
+                            <td>{{ project.integrity_partner_name }}</td>
+                            <td>
+                                {% if project.evaluation_runs %}
+                                    {{ project.evaluation_runs[-1].created_at.strftime('%Y-%m-%d') }}
+                                {% else %}
+                                    No assessments
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('main.project_details', project_id=project.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">View Project</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
+    {% endif %}
 {% endblock %} 

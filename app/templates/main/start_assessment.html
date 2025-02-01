@@ -21,8 +21,8 @@
         <div class="form-group mb-4">
             <label for="temperature">Temperature:</label>
             <input type="number" class="form-control" id="temperature" name="temperature" 
-                   value="0.5" step="0.1" min="0.1" max="0.7" required>
-            <small class="form-text text-muted">Adjust the conciseness of the responses (0.1 = high, 0.7 = low).</small>
+                   value="0.5" step="0.1" min="0.`" max="0.7" required>
+            <small class="form-text text-muted">Adjust the creativity of the responses (0.1 to 0.7).</small>
         </div>
 
         <!-- Document Selection Section -->
@@ -31,7 +31,7 @@
                 <h5 class="mb-0">Select Documents to Include</h5>
                 <div class="custom-control custom-checkbox">
                     <input type="checkbox" class="custom-control-input" id="selectAllDocs" checked>
-                    <label class="custom-control-label" for="selectAllDocs">Select All Documents</label>
+                    <label class="custom-control-label" for="selectAllDocs">Select All</label>
                 </div>
             </div>
             <div class="card-body">
@@ -66,7 +66,7 @@
                 <h5 class="mb-0">Assessment Questions</h5>
                 <div class="custom-control custom-checkbox">
                     <input type="checkbox" class="custom-control-input" id="selectAllQuestions" checked>
-                    <label class="custom-control-label" for="selectAllQuestions">Select All Questions</label>
+                    <label class="custom-control-label" for="selectAllQuestions">Select All</label>
                 </div>
             </div>
             <div class="card-body">
@@ -89,50 +89,37 @@
         <button type="submit" class="btn btn-primary">Start Assessment</button>
         <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-secondary">Cancel</a>
     </form>
-{% endblock %}
 
-{% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Document selection
-    const selectAllDocs = document.getElementById('selectAllDocs');
-    const documentCheckboxes = document.querySelectorAll('.document-checkbox');
-    
-    selectAllDocs.addEventListener('change', function() {
-        documentCheckboxes.forEach(checkbox => {
-            checkbox.checked = this.checked;
+    <!-- Add JavaScript for checkbox functionality -->
+    {% block scripts %}
+    <script>
+        document.getElementById('selectAllDocs').addEventListener('change', function() {
+            const checkboxes = document.getElementsByClassName('document-checkbox');
+            for (let checkbox of checkboxes) {
+                checkbox.checked = this.checked;
+            }
         });
-    });
 
-    // Question selection
-    const selectAllQuestions = document.getElementById('selectAllQuestions');
-    const questionCheckboxes = document.querySelectorAll('.question-checkbox');
-    
-    selectAllQuestions.addEventListener('change', function() {
-        questionCheckboxes.forEach(checkbox => {
-            checkbox.checked = this.checked;
+        document.getElementById('selectAllQuestions').addEventListener('change', function() {
+            const checkboxes = document.getElementsByClassName('question-checkbox');
+            for (let checkbox of checkboxes) {
+                checkbox.checked = this.checked;
+            }
         });
-    });
 
-    // Update "select all" checkboxes when individual items are clicked
-    function updateSelectAll(checkboxes, selectAllCheckbox) {
-        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-        const someChecked = Array.from(checkboxes).some(cb => cb.checked);
-        selectAllCheckbox.checked = allChecked;
-        selectAllCheckbox.indeterminate = someChecked && !allChecked;
-    }
-
-    documentCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', () => {
-            updateSelectAll(documentCheckboxes, selectAllDocs);
+        // Update "Select All" when individual checkboxes change
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('document-checkbox')) {
+                const allDocs = document.getElementsByClassName('document-checkbox');
+                const selectAllDocs = document.getElementById('selectAllDocs');
+                selectAllDocs.checked = Array.from(allDocs).every(cb => cb.checked);
+            }
+            if (e.target.classList.contains('question-checkbox')) {
+                const allQuestions = document.getElementsByClassName('question-checkbox');
+                const selectAllQuestions = document.getElementById('selectAllQuestions');
+                selectAllQuestions.checked = Array.from(allQuestions).every(cb => cb.checked);
+            }
         });
-    });
-
-    questionCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', () => {
-            updateSelectAll(questionCheckboxes, selectAllQuestions);
-        });
-    });
-});
-</script>
+    </script>
+    {% endblock %}
 {% endblock %} 

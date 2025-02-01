@@ -54,9 +54,14 @@
                             <li>No assessments run yet.</li>
                         {% endfor %}
                     </ul>
-                    <a href="{{ url_for('main.start_assessment', project_id=project.id) }}" class="btn btn-primary">Start New Assessment</a>
+                    <div class="btn-group">
+                        <a href="{{ url_for('main.start_assessment', project_id=project.id) }}" 
+                           class="btn btn-primary">Start New Assessment (Claude)</a>
+                        
+                    </div>
                 </div>
             </div>
+
         </div>
 
         <div class="col-md-4">  <!-- Right column for project details -->

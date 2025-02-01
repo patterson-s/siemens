@@ -40,6 +40,9 @@ def create_app(config_class=Config):
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
 
+    from app.auth import bp as auth_bp
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+
     # Create database tables
     with app.app_context():
         db.create_all()
@@ -51,9 +54,9 @@ def create_app(config_class=Config):
     return app
 
 # Import models after db is defined
-from app.models import models
+from app.models.models import User
 
 # User loader function
 @login.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))  # Assuming User is your user model 
+    return User.query.get(int(user_id)) 
