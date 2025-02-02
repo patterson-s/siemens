@@ -2,35 +2,48 @@
 
 {% block content %}
     <h1 class="my-4">Projects</h1>
-    <div class="row">
-        {% if projects %}
-            {% for project in projects %}
-                <div class="col-12 mb-3">  <!-- Full width card -->
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ project.name }}</h5>
-                            <div class="mb-3">
-                                <span class="text-muted">Documents: {{ project.documents|length }}</span>
-                                {% if project.evaluation_runs %}
-                                    {% set latest = project.evaluation_runs|sort(attribute='created_at')|last %}
-                                    <br>
-                                    <span class="text-muted">Latest Assessment: 
-                                        {{ latest.created_at.strftime('%Y-%m-%d %H:%M') }} 
-                                        using {{ latest.model_used }}
-                                    </span>
-                                {% endif %}
-                            </div>
-                            <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-primary">View Project</a>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        {% else %}
-            <div class="col-12">
-                <div class="alert alert-info">
-                    No active projects found.
-                </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Partner</th>
+                            <th>Region</th>
+                            <th>Documents</th>
+                            <th>Latest Assessment</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for project in projects %}
+                            <tr>
+                                <td>{{ project.name }}</td>
+                                <td>{{ project.integrity_partner_name }}</td>
+                                <td>{{ project.region }}</td>
+                                <td>{{ project.documents|length }}</td>
+                                <td>
+                                    {% if project.evaluation_runs %}
+                                        {{ project.evaluation_runs[-1].created_at.strftime('%Y-%m-%d') }}
+                                    {% else %}
+                                        <span class="text-muted">No assessments</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-right">
+                                    <a href="{{ url_for('main.project_details', project_id=project.id) }}" 
+                                       class="btn btn-sm btn-outline-primary">View Project</a>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center">No active projects found.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-        {% endif %}
+        </div>
     </div>
 {% endblock %} 

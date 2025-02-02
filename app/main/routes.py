@@ -679,54 +679,58 @@ def ai_agent():
         )
         
         try:
-            agent = create_sql_agent(
-                llm=llm,
-                toolkit=SQLDatabaseToolkit(db=sql_db, llm=llm),
-                agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-                verbose=True,
-                prefix="""You are a helpful assistant analyzing data from the Siemens Integrity Initiative database.
-
-Database Structure:
-1. univ_projects:
-   - Main project information
-   - Contains: id, name, name_of_round, file_number_db, scope, region, countries_covered
-   - integrity_partner_name: Organization implementing the project
-   - funding_amount_usd: Project funding in millions of dollars
-   - start_year, end_year: Project duration
-   - active: not used for anything related to the assessment process
-
-2. univ_evaluation_runs:
-   - Assessment records for projects
-   - Contains: id, project_id, status, created_at, model_used
-   - Links to projects through project_id
-   - status can be: pending, in_progress, completed, failed
-
-3. univ_evaluation_responses:
-   - Detailed assessment answers
-   - Contains: id, evaluation_run_id, question_id, response_text
-   - Links to evaluation_runs and project_questions
-
-4. univ_project_questions:
-   - Assessment question templates
-   - Contains: id, question, name, prompt, order
-
-Important notes about the data:
-- The funding_amount_usd field represents millions of dollars
-  For example, a value of 1.5 means $1.5 million USD
-- All monetary values should be presented in millions with proper formatting
-  For example: "$1.5 million" or "USD 1.5M"
-
-When analyzing financial data:
-1. Always convert the raw numbers to millions of dollars
-2. Use clear currency formatting (USD, $)
-3. Include "million" or "M" in the output
-4. Round to 2 decimal places when needed
-
-Please provide clear, well-formatted responses and cite the specific tables and fields used."""
-            )
+            # Create a SQL generation prompt
+            sql_prompt = f"""Based on this question, generate a SQL query to get the answer from our database:
+            Question: {user_query}
             
-            # Execute the agent and capture the response
-            response = agent.run(user_query)
+            Database Structure:
+            1. univ_projects (p):
+               - id (primary key)
+               - name, name_of_round, file_number_db, scope, region, countries_covered
+               - integrity_partner_name
+               - funding_amount_usd (in millions)
+               - start_year, end_year
+            
+            2. univ_evaluation_runs (er):
+               - id (primary key)
+               - project_id (foreign key to univ_projects.id)
+               - status, created_at, model_used
+            
+            3. univ_evaluation_responses (r):
+               - id (primary key)
+               - evaluation_run_id (foreign key to univ_evaluation_runs.id)
+               - question_id (foreign key to univ_project_questions.id)
+               - response_text (contains the actual response)
+            
+            4. univ_project_questions (q):
+               - id (primary key)
+               - question, name, prompt, order
+            
+            Common joins:
+            - Join projects to evaluation runs: p.id = er.project_id
+            - Join evaluation runs to responses: er.id = r.evaluation_run_id
+            - Join responses to questions: r.question_id = q.id
+            
+            Return only the SQL query, nothing else."""
+            
+            # Get SQL query
+            sql_response = llm.invoke(sql_prompt)
+            sql_query = sql_response.content.strip()
+            
+            # Execute query
+            result = sql_db.run(sql_query)
+            
+            # Generate natural language response
+            analysis_prompt = f"""Here is the data from our database query:
+            Question: {user_query}
+            Query: {sql_query}
+            Result: {result}
+            
+            Please provide a clear, natural language explanation of these results."""
+            
+            # Get final response
+            final_response = llm.invoke(analysis_prompt)
+            response = final_response.content
             
             # Create assistant message
             assistant_message = ChatMessage(
@@ -742,7 +746,7 @@ Please provide clear, well-formatted responses and cite the specific tables and 
             
             db.session.commit()
             
-            # Get all messages for this session in reverse chronological order
+            # Get all messages for this session
             messages = ChatMessage.query.filter_by(session_id=chat_session.id)\
                 .order_by(ChatMessage.created_at.desc())\
                 .all()
@@ -758,7 +762,7 @@ Please provide clear, well-formatted responses and cite the specific tables and 
             flash(f'Error processing query: {str(e)}', 'error')
             return redirect(url_for('main.ai_agent'))
     
-    # Get all messages for this session in reverse chronological order
+    # GET request handling remains the same
     messages = ChatMessage.query.filter_by(session_id=chat_session.id)\
         .order_by(ChatMessage.created_at.desc())\
         .all()
