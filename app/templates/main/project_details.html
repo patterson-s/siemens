@@ -152,14 +152,6 @@
                                 <td>{{ project.notes }}</td>
                             </tr>
                             {% endif %}
-                            <tr>
-                                <th>Status</th>
-                                <td>
-                                    <span class="badge {% if project.active %}badge-success{% else %}badge-secondary{% endif %}">
-                                        {{ 'Active' if project.active else 'Inactive' }}
-                                    </span>
-                                </td>
-                            </tr>
                         </tbody>
                     </table>
                 </div>
