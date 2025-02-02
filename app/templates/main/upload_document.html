@@ -2,27 +2,97 @@
 
 {% block content %}
     <h1 class="my-4">Upload Document for {{ project.name }}</h1>
-    <form method="POST" enctype="multipart/form-data">
-        <div class="form-group">
-            <label for="document_type">Document Type</label>
-            <select class="form-control" id="document_type" name="document_type" required>
-                {% for value, label in document_types %}
-                    <option value="{{ value }}">{{ label }}</option>
-                {% endfor %}
-            </select>
-            <small class="form-text text-muted">Select the type of document you are uploading.</small>
+    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+        <div class="card mb-4">
+            <div class="card-body">
+                <!-- File Selection First -->
+                <div class="form-group">
+                    <label for="file">Select Document File</label>
+                    <input type="file" class="form-control-file" id="file" name="file" 
+                           accept=".pdf,.txt,.doc,.docx" required>
+                    <small class="form-text text-muted">Supported formats: PDF, TXT, DOC, DOCX</small>
+                </div>
+
+                <!-- Document Type as Radio Buttons -->
+                <div class="form-group mt-4">
+                    <label class="d-block">Document Type</label>
+                    <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                        {% for value, label in document_types %}
+                            <label class="btn btn-outline-primary">
+                                <input type="radio" name="document_type" value="{{ value }}" required> 
+                                {{ label|replace('_', ' ')|title }}
+                            </label>
+                        {% endfor %}
+                    </div>
+                    <small class="form-text text-muted mt-2">Select the type of document you are uploading</small>
+                </div>
+            </div>
         </div>
-        
-        <div class="form-group">
-            <label for="file">Select Document File</label>
-            <input type="file" class="form-control-file" id="file" name="file" 
-                   accept=".pdf,.txt,.doc,.docx" required>
-            <small class="form-text text-muted">Supported formats: PDF, TXT, DOC, DOCX</small>
-        </div>
-        
+
         <div class="mt-4">
-            <button type="submit" class="btn btn-primary">Upload Document</button>
+            <button type="submit" class="btn btn-primary" id="uploadButton" disabled>Upload Document</button>
             <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
+
+    <style>
+        /* Custom styling for radio button group */
+        .btn-group-toggle .btn {
+            margin-right: 5px;
+            border-radius: 4px !important;
+            text-transform: capitalize;
+        }
+        
+        .btn-group-toggle .btn:last-child {
+            margin-right: 0;
+        }
+        
+        .btn-group-toggle .btn.active {
+            background-color: #1abc9c;
+            border-color: #1abc9c;
+            color: white;
+        }
+        
+        /* Improve spacing between buttons */
+        .btn-group {
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        /* Disabled button styling */
+        .btn-primary:disabled {
+            background-color: #cccccc;
+            border-color: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('uploadForm');
+            const fileInput = document.getElementById('file');
+            const uploadButton = document.getElementById('uploadButton');
+            const radioContainer = document.querySelector('.btn-group-toggle');
+
+            function checkFormValidity() {
+                const fileSelected = fileInput.files.length > 0;
+                const typeSelected = form.querySelector('input[name="document_type"]:checked') !== null;
+                console.log('File selected:', fileSelected);
+                console.log('Type selected:', typeSelected);
+                uploadButton.disabled = !(fileSelected && typeSelected);
+            }
+
+            // Add event listeners
+            fileInput.addEventListener('change', checkFormValidity);
+            
+            // Listen to clicks on the radio button container
+            radioContainer.addEventListener('click', function(e) {
+                // Give the DOM time to update the radio button state
+                setTimeout(checkFormValidity, 50);
+            });
+
+            // Initial check
+            checkFormValidity();
+        });
+    </script>
 {% endblock %} 
