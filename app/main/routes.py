@@ -670,11 +670,11 @@ def ai_agent():
         db_uri = current_app.config['SQLALCHEMY_DATABASE_URI']
         sql_db = SQLDatabase.from_uri(db_uri)
         
-        # Initialize the LLM
+        # Initialize the LLM with higher temperature
         llm = ChatAnthropic(
             model="claude-3-sonnet-20240229",
             anthropic_api_key=Config.CLAUDE_API_KEY,
-            temperature=0.2,
+            temperature=0.3,  
             max_tokens=4000
         )
         
@@ -685,6 +685,7 @@ def ai_agent():
             
             Database Structure:
             1. univ_projects (p):
+               this table contains the project details
                - id (primary key)
                - name, name_of_round, file_number_db, scope, region, countries_covered
                - integrity_partner_name
@@ -692,19 +693,35 @@ def ai_agent():
                - start_year, end_year
             
             2. univ_evaluation_runs (er):
+                this table contains the details of assessment runs for each project
                - id (primary key)
                - project_id (foreign key to univ_projects.id)
                - status, created_at, model_used
             
             3. univ_evaluation_responses (r):
+                this table contains the responses to each question for each assessment run
                - id (primary key)
                - evaluation_run_id (foreign key to univ_evaluation_runs.id)
                - question_id (foreign key to univ_project_questions.id)
                - response_text (contains the actual response)
             
             4. univ_project_questions (q):
+                this table contains the questions and their details
+                look at the question and name fields to determine which question answers the user query, then match it with the assessment run for the project(s) idnetified in the user query
                - id (primary key)
                - question, name, prompt, order
+               - here are the questions ids and topics:
+                id = 1   2.1 b Intended outputs achieved
+                id = 2   2.1 a Outputs by Category
+                id = 3   2.2 Attributable Outcomes
+                id = 4   2.3 Impact Evidence Analysis
+                id = 5   2.4 Unplanned Results
+                id = 6   2.5 Sustainable Results
+                id = 7   2.6 Internal Factors
+                id = 8   2.7 External Factors
+                id = 9   Project Overview
+                id = 11  Contributions and Ratings
+            
             
             Common joins:
             - Join projects to evaluation runs: p.id = er.project_id
@@ -721,12 +738,29 @@ def ai_agent():
             result = sql_db.run(sql_query)
             
             # Generate natural language response
-            analysis_prompt = f"""Here is the data from our database query:
-            Question: {user_query}
-            Query: {sql_query}
+            analysis_prompt = f"""Original question: {user_query}
+
+            Query used:
+            {sql_query}
+
+            Here is the data from our database that answers the question:
             Result: {result}
             
-            Please provide a clear, natural language explanation of these results."""
+            You are an expert analyst helping to understand project performance. Use the data to provide 
+            insightful analysis that directly answers the original question. Focus on extracting meaningful 
+            insights from the data rather than just summarizing it. If patterns or trends emerge across 
+            multiple projects, highlight those.
+
+            Format numbers nicely and use proper sentence structure.
+            If the question is not answered in the data, say so.
+            If the question is not relevant to the data, say so.
+            If the question is not clear, say so.
+            If the question is not answerable, say so.
+            
+            Present your response in two parts:
+            1. Your analytical response to the question
+            2. The SQL query that was used (for verification)
+            """
             
             # Get final response
             final_response = llm.invoke(analysis_prompt)
@@ -842,3 +876,18 @@ def extract_text_from_doc(file):
         
     except Exception as e:
         raise Exception(f"Error processing DOC/DOCX file: {str(e)}") 
+
+@bp.route('/project/<int:project_id>/update_notes', methods=['POST'])
+@login_required
+def update_notes(project_id):
+    project = Project.query.get_or_404(project_id)
+    
+    # Get the notes from the form
+    notes = request.form.get('notes', '').strip()
+    
+    # Update the project
+    project.notes = notes
+    db.session.commit()
+    
+    # Return success
+    return jsonify({'success': True, 'message': 'Notes updated successfully'}) 

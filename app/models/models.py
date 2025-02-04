@@ -102,7 +102,7 @@ class Project(db.Model):
     __tablename__ = 'univ_projects'
     
     id = db.Column(db.Integer, primary_key=True)
-    name_of_round = db.Column(db.String(100), nullable=False)
+    name_of_round = db.Column(db.Numeric(3, 1), nullable=False)  # Changed to Numeric to handle values like 1.0, 2.5 etc
     name = db.Column(db.String(255), nullable=False)
     file_number_db = db.Column(db.Integer)
     scope = db.Column(db.String(100))
@@ -119,16 +119,15 @@ class Project(db.Model):
     duration = db.Column(db.String(50))
     start_year = db.Column(db.Integer)
     end_year = db.Column(db.Integer)
-    final_external_evaluation = db.Column(db.Boolean)
-    final_report = db.Column(db.Boolean)
-    full_proposal = db.Column(db.Boolean)
-    workplan = db.Column(db.Boolean)
-    baseline_assessment = db.Column(db.Boolean)
+    wb_income_classification = db.Column(db.String(50))
+    cci = db.Column(db.Numeric(4, 2))
+    government_type_eiu = db.Column(db.String(100))
+    government_score_eiu = db.Column(db.Numeric(4, 2))
     other = db.Column(db.Text)
     notes = db.Column(db.Text)
-    description = db.Column(db.Text, nullable=True)
-    system_instructions = db.Column(db.Text, nullable=True)
     active = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # Relationships
     documents = db.relationship('Document', backref='project', lazy=True)
     evaluation_runs = db.relationship('EvaluationRun', backref='project', lazy=True)
 

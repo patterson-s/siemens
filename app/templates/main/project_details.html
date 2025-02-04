@@ -77,6 +77,18 @@
                 </div>
             </div>
 
+            <div class="card mb-3">  <!-- Notes card -->
+                <div class="card-body">
+                    <h5 class="card-title">Project Notes</h5>
+                    <form id="notesForm" method="POST" action="{{ url_for('main.update_notes', project_id=project.id) }}">
+                        <div class="form-group">
+                            <textarea class="form-control" id="notes" name="notes" rows="4">{{ project.notes or '' }}</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update Notes</button>
+                    </form>
+                </div>
+            </div>
+
         </div>
 
         <div class="col-md-4">  <!-- Right column for project details -->
@@ -86,8 +98,18 @@
                     <table class="table table-sm">
                         <tbody>
                             <tr>
-                                <th>Round</th>
-                                <td>{{ project.name_of_round }}</td>
+                                <th>Funding Round</th>
+                                <td>
+                                    {% if project.name_of_round == 1.0 %}
+                                        First Round
+                                    {% elif project.name_of_round == 2.0 %}
+                                        Second Round
+                                    {% elif project.name_of_round == 3.0 %}
+                                        Third Round
+                                    {% else %}
+                                        Round {{ project.name_of_round }}
+                                    {% endif %}
+                                </td>
                             </tr>
                             <tr>
                                 <th>File Number</th>
@@ -135,7 +157,13 @@
                             </tr>
                             <tr>
                                 <th>Funding (USD)</th>
-                                <td>{{ project.funding_amount_usd }}</td>
+                                <td>
+                                    {% if project.funding_amount_usd %}
+                                        ${{ "{:,.1f}".format(project.funding_amount_usd) }} million
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
                             </tr>
                             <tr>
                                 <th>Duration</th>
@@ -144,6 +172,22 @@
                             <tr>
                                 <th>Years</th>
                                 <td>{{ project.start_year }} - {{ project.end_year }}</td>
+                            </tr>
+                            <tr>
+                                <th>WB Income Class</th>
+                                <td>{{ project.wb_income_classification }}</td>
+                            </tr>
+                            <tr>
+                                <th>CCI</th>
+                                <td>{{ "%.2f"|format(project.cci|float) if project.cci }}</td>
+                            </tr>
+                            <tr>
+                                <th>Gov Type (EIU)</th>
+                                <td>{{ project.government_type_eiu }}</td>
+                            </tr>
+                            <tr>
+                                <th>Gov Score (EIU)</th>
+                                <td>{{ "%.2f"|format(project.government_score_eiu|float) if project.government_score_eiu }}</td>
                             </tr>
                             <tr>
                                 <th>Documents Available</th>
@@ -159,12 +203,6 @@
                             <tr>
                                 <th>Other</th>
                                 <td>{{ project.other }}</td>
-                            </tr>
-                            {% endif %}
-                            {% if project.notes %}
-                            <tr>
-                                <th>Notes</th>
-                                <td>{{ project.notes }}</td>
                             </tr>
                             {% endif %}
                         </tbody>
@@ -246,5 +284,52 @@
         // Show the modal
         $('#deleteAssessmentModal').modal('show');
     }
+    </script>
+
+    <script>
+    document.getElementById('notesForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        fetch(this.action, {
+            method: 'POST',
+            body: new FormData(this),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-success alert-dismissible fade show mt-2';
+                alert.innerHTML = `
+                    Notes updated successfully
+                    <button type="button" class="close" data-dismiss="alert">
+                        <span>&times;</span>
+                    </button>
+                `;
+                document.getElementById('notesForm').appendChild(alert);
+                
+                // Remove alert after 3 seconds
+                setTimeout(() => {
+                    alert.remove();
+                }, 3000);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            // Show error message
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-danger alert-dismissible fade show mt-2';
+            alert.innerHTML = `
+                Error updating notes. Please try again.
+                <button type="button" class="close" data-dismiss="alert">
+                    <span>&times;</span>
+                </button>
+            `;
+            document.getElementById('notesForm').appendChild(alert);
+        });
+    });
     </script>
 {% endblock %} 

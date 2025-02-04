@@ -1,0 +1,97 @@
+<div class="project-details">
+    <h1>{{ project.name }}</h1>
+    
+    <div class="details-section">
+        <h2>Basic Information</h2>
+        <div class="detail-row">
+            <div class="detail-label">Funding Round:</div>
+            <div class="detail-value">{{ project.name_of_round }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">File Number:</div>
+            <div class="detail-value">{{ project.file_number_db }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Scope:</div>
+            <div class="detail-value">{{ project.scope }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Region:</div>
+            <div class="detail-value">{{ project.region }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Countries:</div>
+            <div class="detail-value">{{ project.countries_covered }}</div>
+        </div>
+    </div>
+
+    <div class="details-section">
+        <h2>Partner Information</h2>
+        <div class="detail-row">
+            <div class="detail-label">Integrity Partner:</div>
+            <div class="detail-value">{{ project.integrity_partner_name }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Partner Type:</div>
+            <div class="detail-value">{{ project.partner_type }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Project Partners:</div>
+            <div class="detail-value">{{ project.project_partners }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">WB or EIB:</div>
+            <div class="detail-value">{{ project.wb_or_eib }}</div>
+        </div>
+    </div>
+
+    <div class="details-section">
+        <h2>Project Details</h2>
+        <div class="detail-row">
+            <div class="detail-label">Key Objectives:</div>
+            <div class="detail-value">{{ project.key_project_objectives }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Sectoral Scope:</div>
+            <div class="detail-value">{{ project.sectoral_scope }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Specific Sector:</div>
+            <div class="detail-value">{{ project.specific_sector }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Funding Amount (USD):</div>
+            <div class="detail-value">${{ "{:,.2f}".format(project.funding_amount_usd|float) if project.funding_amount_usd }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Duration:</div>
+            <div class="detail-value">{{ project.duration }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Project Period:</div>
+            <div class="detail-value">{{ project.start_year }} - {{ project.end_year }}</div>
+        </div>
+    </div>
+
+    <div class="details-section">
+        <h2>Country Context</h2>
+        <div class="detail-row">
+            <div class="detail-label">WB Income Classification:</div>
+            <div class="detail-value">{{ project.wb_income_classification }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Control of Corruption Index:</div>
+            <div class="detail-value">{{ "%.2f"|format(project.cci|float) if project.cci }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Government Type (EIU):</div>
+            <div class="detail-value">{{ project.government_type_eiu }}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Government Score (EIU):</div>
+            <div class="detail-value">{{ "%.2f"|format(project.government_score_eiu|float) if project.government_score_eiu }}</div>
+        </div>
+    </div>
+
+    <!-- ... existing document list and other sections ... -->
+</div> 
