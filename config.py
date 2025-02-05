@@ -33,7 +33,8 @@ class Config:
     CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
     CLAUDE_MODELS = {
         'claude-3-5-haiku-latest': 'Claude 3.5 Haiku',
-        'claude-3-5-sonnet-latest': 'Claude 3.5 Sonnet'
+        'claude-3-5-sonnet-latest': 'Claude 3.5 Sonnet',
+        'claude-3-opus-20240229': 'Claude 3.0 Opus'
     }
     CLAUDE_MODEL = "claude-3-5-haiku-latest"
 
