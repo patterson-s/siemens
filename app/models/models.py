@@ -120,6 +120,7 @@ class Project(db.Model):
     start_year = db.Column(db.Integer)
     end_year = db.Column(db.Integer)
     wb_income_classification = db.Column(db.String(50))
+    corruption_quintile = db.Column(db.String(25))
     cci = db.Column(db.Numeric(4, 2))
     government_type_eiu = db.Column(db.String(100))
     government_score_eiu = db.Column(db.Numeric(4, 2))
