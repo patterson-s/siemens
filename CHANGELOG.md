@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Display of corruption quintile in project details view
 - Updated data import script to handle new field
 - Migration script for adding corruption_quintile column
+### Changed
+- Added in-place editing for project details table
+- Separated project details and notes update functionality
+- Improved project details editing with jQuery-based toggle functionality
+### Fixed
+- Improved null value handling in project details display
 
 ## [1.0.0] - 2024-02-01
 ### Added

@@ -890,4 +890,51 @@ def update_notes(project_id):
     db.session.commit()
     
     # Return success
-    return jsonify({'success': True, 'message': 'Notes updated successfully'}) 
+    return jsonify({'success': True, 'message': 'Notes updated successfully'})
+
+@bp.route('/project/<int:project_id>/update', methods=['POST'])
+@login_required
+def update_project(project_id):
+    project = Project.query.get_or_404(project_id)
+    
+    try:
+        # Update existing fields
+        project.name_of_round = float(request.form.get('name_of_round'))
+        project.file_number_db = request.form.get('file_number_db')
+        project.scope = request.form.get('scope')
+        project.region = request.form.get('region')
+        project.countries_covered = request.form.get('countries_covered')
+        project.integrity_partner_name = request.form.get('integrity_partner_name')
+        project.partner_type = request.form.get('partner_type')
+        project.project_partners = request.form.get('project_partners')
+        project.wb_or_eib = request.form.get('wb_or_eib')
+        
+        # Add missing fields
+        project.key_project_objectives = request.form.get('key_project_objectives')
+        project.sectoral_scope = request.form.get('sectoral_scope')
+        project.specific_sector = request.form.get('specific_sector')
+        project.funding_amount_usd = float(request.form.get('funding_amount_usd')) if request.form.get('funding_amount_usd') else None
+        project.duration = request.form.get('duration')
+        project.start_year = int(request.form.get('start_year')) if request.form.get('start_year') else None
+        project.end_year = int(request.form.get('end_year')) if request.form.get('end_year') else None
+        project.wb_income_classification = request.form.get('wb_income_classification')
+        project.corruption_quintile = request.form.get('corruption_quintile')
+        project.cci = float(request.form.get('cci')) if request.form.get('cci') else None
+        project.government_type_eiu = request.form.get('government_type_eiu')
+        project.government_score_eiu = float(request.form.get('government_score_eiu')) if request.form.get('government_score_eiu') else None
+        
+        # Handle checkboxes
+        project.final_external_evaluation = 'final_external_evaluation' in request.form
+        project.final_report = 'final_report' in request.form
+        project.full_proposal = 'full_proposal' in request.form
+        project.workplan = 'workplan' in request.form
+        project.baseline_assessment = 'baseline_assessment' in request.form
+        
+        # Handle optional other field
+        project.other = request.form.get('other')
+
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}) 
