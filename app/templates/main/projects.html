@@ -21,13 +21,13 @@
                 </div>
                 <div class="col-md-6 text-right">
                     <form method="GET" action="{{ url_for('main.projects') }}">
-                        <select name="sort" class="form-control d-inline-block" style="width: auto;">
-                            <option value="funding_round">Sort By Funding Round</option>
-                            <option value="file_number">Sort By File Number</option>
-                            <option value="partner_name">Sort By Partner Name</option>
-                            <option value="region">Sort By Region</option>
+                        <select name="sort" class="form-control d-inline-block" style="width: auto;" onchange="this.form.submit()">
+                            <option value="default" {% if request.args.get('sort') == 'default' %}selected{% endif %}>Default Sort (Round, File #)</option>
+                            <option value="funding_round" {% if request.args.get('sort') == 'funding_round' %}selected{% endif %}>Sort By Funding Round</option>
+                            <option value="file_number" {% if request.args.get('sort') == 'file_number' %}selected{% endif %}>Sort By File Number</option>
+                            <option value="partner_name" {% if request.args.get('sort') == 'partner_name' %}selected{% endif %}>Sort By Partner Name</option>
+                            <option value="region" {% if request.args.get('sort') == 'region' %}selected{% endif %}>Sort By Region</option>
                         </select>
-                        <button type="submit" class="btn btn-primary">Sort</button>
                     </form>
                 </div>
             </div>

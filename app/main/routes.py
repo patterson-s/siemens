@@ -53,7 +53,7 @@ def index():
 @login_required
 def projects():
     search_query = request.args.get('search', '')
-    sort_by = request.args.get('sort', 'funding_round')  # Default sort option
+    sort_by = request.args.get('sort', 'default')  # Default sort option
 
     # Query only active projects from the database
     active_projects = Project.query.filter_by(active=True)
@@ -63,7 +63,7 @@ def projects():
         active_projects = active_projects.filter(Project.integrity_partner_name.ilike(f'%{search_query}%'))
 
     # Apply sorting
-    if sort_by == 'funding_round':
+    if sort_by == 'default' or sort_by == 'funding_round':
         active_projects = active_projects.order_by(Project.name_of_round.asc(), Project.file_number_db.asc())
     elif sort_by == 'file_number':
         active_projects = active_projects.order_by(Project.file_number_db.asc())
@@ -71,9 +71,6 @@ def projects():
         active_projects = active_projects.order_by(Project.integrity_partner_name.asc())
     elif sort_by == 'region':
         active_projects = active_projects.order_by(Project.region.asc())
-    else:
-        # Default sorting if no sort option is provided
-        active_projects = active_projects.order_by(Project.name_of_round.asc(), Project.file_number_db.asc())
 
     active_projects = active_projects.all()
 
