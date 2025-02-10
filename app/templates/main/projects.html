@@ -59,7 +59,15 @@
                                         {{ project.name_of_round }}
                                     {% endif %}
                                 </td>
-                                <td>{{ project.file_number_db }}</td>
+                                <td>
+                                    {% if project.file_number_db %}
+                                        {% if project.file_number_db % 1 == 0 %}
+                                            {{ project.file_number_db | int }}
+                                        {% else %}
+                                            {{ project.file_number_db }}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
                                 <td><strong>{{ project.integrity_partner_name }}</strong></td>
                                 <td>{{ project.partner_type }}</td>
                                 <td>{{ project.region }}</td>

@@ -104,7 +104,7 @@ class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name_of_round = db.Column(db.Numeric(3, 1), nullable=False)  # Changed to Numeric to handle values like 1.0, 2.5 etc
     name = db.Column(db.String(255), nullable=False)
-    file_number_db = db.Column(db.Integer)
+    file_number_db = db.Column(db.Float)
     scope = db.Column(db.String(100))
     region = db.Column(db.String(100))
     countries_covered = db.Column(db.String(255))
