@@ -27,6 +27,7 @@
                             <option value="file_number" {% if request.args.get('sort') == 'file_number' %}selected{% endif %}>Sort By File Number</option>
                             <option value="partner_name" {% if request.args.get('sort') == 'partner_name' %}selected{% endif %}>Sort By Partner Name</option>
                             <option value="region" {% if request.args.get('sort') == 'region' %}selected{% endif %}>Sort By Region</option>
+                            <option value="countries" {% if request.args.get('sort') == 'countries' %}selected{% endif %}>Sort By Countries</option>
                         </select>
                     </form>
                 </div>
@@ -40,6 +41,7 @@
                             <th>Partner</th>
                             <th>Partner Type</th>
                             <th>Region</th>
+                            <th>Countries</th>
                             <th>Documents</th>
                             <th>Assessments</th>
                             <th></th>
@@ -71,6 +73,7 @@
                                 <td><strong>{{ project.integrity_partner_name }}</strong></td>
                                 <td>{{ project.partner_type }}</td>
                                 <td>{{ project.region }}</td>
+                                <td>{{ project.countries_covered }}</td>
                                 <td>
                                     <div>
                                         {% set has_project_report = project.documents | selectattr('document_type', 'equalto', 'project_report') | list | length > 0 %}

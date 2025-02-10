@@ -71,6 +71,8 @@ def projects():
         active_projects = active_projects.order_by(Project.integrity_partner_name.asc())
     elif sort_by == 'region':
         active_projects = active_projects.order_by(Project.region.asc())
+    elif sort_by == 'countries':
+        active_projects = active_projects.order_by(Project.countries_covered.asc())
 
     active_projects = active_projects.all()
 
