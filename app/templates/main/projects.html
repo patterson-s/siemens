@@ -5,31 +5,90 @@
     
     <div class="card">
         <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <form method="GET" action="{{ url_for('main.projects') }}" class="form-inline">
+                        <div class="input-group">
+                            <input type="text" name="search" placeholder="Search by Partner Name" 
+                                   class="form-control" style="width: 200px;" 
+                                   value="{{ request.args.get('search', '') }}">
+                            <div class="input-group-append">
+                                <button type="submit" class="btn btn-primary">Search</button>
+                                <a href="{{ url_for('main.projects') }}" class="btn btn-secondary">Clear</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-md-6 text-right">
+                    <form method="GET" action="{{ url_for('main.projects') }}">
+                        <select name="sort" class="form-control d-inline-block" style="width: auto;">
+                            <option value="funding_round">Sort By Funding Round</option>
+                            <option value="file_number">Sort By File Number</option>
+                            <option value="partner_name">Sort By Partner Name</option>
+                            <option value="region">Sort By Region</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">Sort</button>
+                    </form>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>Project Name</th>
+                            <th>Round</th>
+                            <th>File #</th>
                             <th>Partner</th>
+                            <th>Partner Type</th>
                             <th>Region</th>
                             <th>Documents</th>
-                            <th>Latest Assessment</th>
+                            <th>Assessments</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for project in projects %}
                             <tr>
-                                <td>{{ project.name }}</td>
-                                <td>{{ project.integrity_partner_name }}</td>
-                                <td>{{ project.region }}</td>
-                                <td>{{ project.documents|length }}</td>
                                 <td>
-                                    {% if project.evaluation_runs %}
-                                        {{ project.evaluation_runs[-1].created_at.strftime('%Y-%m-%d') }}
+                                    {% if project.name_of_round == 1.0 %}
+                                        First
+                                    {% elif project.name_of_round == 2.0 %}
+                                        Second
+                                    {% elif project.name_of_round == 3.0 %}
+                                        Third
                                     {% else %}
-                                        <span class="text-muted">No assessments</span>
+                                        {{ project.name_of_round }}
                                     {% endif %}
+                                </td>
+                                <td>{{ project.file_number_db }}</td>
+                                <td><strong>{{ project.integrity_partner_name }}</strong></td>
+                                <td>{{ project.partner_type }}</td>
+                                <td>{{ project.region }}</td>
+                                <td>
+                                    <div>
+                                        {% set has_project_report = project.documents | selectattr('document_type', 'equalto', 'project_report') | list | length > 0 %}
+                                        {% set has_external_evaluation = project.documents | selectattr('document_type', 'equalto', 'external_evaluation') | list | length > 0 %}
+                                        
+                                        <span class="badge {{ 'badge-success' if has_project_report else 'badge-danger' }}">
+                                            Project Report
+                                        </span>
+                                        <span class="badge {{ 'badge-success' if has_external_evaluation else 'badge-danger' }}">
+                                            External Evaluation
+                                        </span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        {% if project.evaluation_runs %}
+                                            {% set sorted_evaluations = project.evaluation_runs | sort(attribute='created_at', reverse=True) %}
+                                            {% for evaluation in sorted_evaluations[:2] %}
+                                                <span class="badge badge-success">
+                                                    {{ evaluation.created_at.strftime('%Y-%m-%d') }} - {{ evaluation.responses|length }}/{{ evaluation.total_questions }}
+                                                </span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="badge badge-danger">No assessments</span>
+                                        {% endif %}
+                                    </div>
                                 </td>
                                 <td class="text-right">
                                     <a href="{{ url_for('main.project_details', project_id=project.id) }}" 
@@ -38,7 +97,7 @@
                             </tr>
                         {% else %}
                             <tr>
-                                <td colspan="6" class="text-center">No active projects found.</td>
+                                <td colspan="8" class="text-center">No active projects found.</td>
                             </tr>
                         {% endfor %}
                     </tbody>

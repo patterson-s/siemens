@@ -52,8 +52,31 @@ def index():
 @bp.route('/projects')
 @login_required
 def projects():
+    search_query = request.args.get('search', '')
+    sort_by = request.args.get('sort', 'funding_round')  # Default sort option
+
     # Query only active projects from the database
-    active_projects = Project.query.filter_by(active=True).all()
+    active_projects = Project.query.filter_by(active=True)
+
+    # Apply search filter
+    if search_query:
+        active_projects = active_projects.filter(Project.integrity_partner_name.ilike(f'%{search_query}%'))
+
+    # Apply sorting
+    if sort_by == 'funding_round':
+        active_projects = active_projects.order_by(Project.name_of_round.asc(), Project.file_number_db.asc())
+    elif sort_by == 'file_number':
+        active_projects = active_projects.order_by(Project.file_number_db.asc())
+    elif sort_by == 'partner_name':
+        active_projects = active_projects.order_by(Project.integrity_partner_name.asc())
+    elif sort_by == 'region':
+        active_projects = active_projects.order_by(Project.region.asc())
+    else:
+        # Default sorting if no sort option is provided
+        active_projects = active_projects.order_by(Project.name_of_round.asc(), Project.file_number_db.asc())
+
+    active_projects = active_projects.all()
+
     return render_template('main/projects.html', 
                          projects=active_projects, 
                          title='Projects - ' + Config.APP_NAME)
