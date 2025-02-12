@@ -88,7 +88,14 @@
                                         
                                         <!-- Edit form (hidden by default) -->
                                         <div id="responseEditForm{{ response.id }}" class="response-edit-form" style="display: none;">
-                                            <textarea class="form-control mb-2" rows="5">{{ response.response_text }}</textarea>
+                                            <div class="form-group">
+                                                <textarea class="form-control mb-2" 
+                                                          id="responseText{{ response.id }}" 
+                                                          name="responseText" 
+                                                          rows="15" 
+                                                          style="resize: both;"
+                                                          required>{{ response.response_text }}</textarea>
+                                            </div>
                                             <div class="text-right">
                                                 <button class="btn btn-sm btn-secondary mr-2" onclick="cancelEdit({{ response.id }})">Cancel</button>
                                                 <button class="btn btn-sm btn-success" onclick="saveEdit({{ response.id }})">Save Changes</button>
