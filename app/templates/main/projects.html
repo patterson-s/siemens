@@ -42,8 +42,9 @@
                             <th>Partner Type</th>
                             <th>Region</th>
                             <th>Countries</th>
-                            <th>Documents</th>
-                            <th>Assessments</th>
+                            <th>Documents Uploaded</th>
+                            <th>Responses Generated</th>
+                            <th>Responses Reviewed</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -76,30 +77,26 @@
                                 <td>{{ project.countries_covered }}</td>
                                 <td>
                                     <div>
-                                        {% set has_project_report = project.documents | selectattr('document_type', 'equalto', 'project_report') | list | length > 0 %}
+                                        {% set has_project_report = project.documents | selectattr('document_type', 'equalto', 'final_project_report') | list | length > 0 %}
                                         {% set has_external_evaluation = project.documents | selectattr('document_type', 'equalto', 'external_evaluation') | list | length > 0 %}
                                         
-                                        <span class="badge {{ 'badge-success' if has_project_report else 'badge-danger' }}">
+                                        <span class="badge {{ 'badge-success' if has_project_report else 'badge-outline-success' }}">
                                             Project Report
                                         </span>
-                                        <span class="badge {{ 'badge-success' if has_external_evaluation else 'badge-danger' }}">
+                                        <span class="badge {{ 'badge-success' if has_external_evaluation else 'badge-outline-success' }}">
                                             External Evaluation
                                         </span>
                                     </div>
                                 </td>
                                 <td>
-                                    <div>
-                                        {% if project.evaluation_runs %}
-                                            {% set sorted_evaluations = project.evaluation_runs | sort(attribute='created_at', reverse=True) %}
-                                            {% for evaluation in sorted_evaluations[:2] %}
-                                                <span class="badge badge-success">
-                                                    {{ evaluation.created_at.strftime('%Y-%m-%d') }} - {{ evaluation.responses|length }}/{{ evaluation.total_questions }}
-                                                </span>
-                                            {% endfor %}
-                                        {% else %}
-                                            <span class="badge badge-danger">No assessments</span>
-                                        {% endif %}
-                                    </div>
+                                    <span class="badge {% if response_counts.get(project.id, (0,0))[0] == total_questions %}badge-success{% elif response_counts.get(project.id, (0,0))[0] > 0 %}badge-info{% else %}badge-outline-info{% endif %}">
+                                        {{ response_counts.get(project.id, (0,0))[0] }}/{{ total_questions }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge {% if response_counts.get(project.id, (0,0))[0] == 0 %}badge-outline-info{% elif response_counts.get(project.id, (0,0))[1] == response_counts.get(project.id, (0,0))[0] %}badge-success{% elif response_counts.get(project.id, (0,0))[1] > 0 %}badge-info{% else %}badge-outline-info{% endif %}">
+                                        {{ response_counts.get(project.id, (0,0))[1] }}/{{ response_counts.get(project.id, (0,0))[0] }}
+                                    </span>
                                 </td>
                                 <td class="text-right">
                                     <a href="{{ url_for('main.project_details', project_id=project.id) }}" 
@@ -108,7 +105,7 @@
                             </tr>
                         {% else %}
                             <tr>
-                                <td colspan="8" class="text-center">No active projects found.</td>
+                                <td colspan="10" class="text-center">No active projects found.</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -116,4 +113,26 @@
             </div>
         </div>
     </div>
+
+    <!-- Add custom styles for outline badges -->
+    <style>
+        .badge-outline-success {
+            color: #28a745;
+            background-color: white;
+            border: 1px solid #28a745;
+        }
+        
+        .badge-outline-info {
+            color: #17a2b8;
+            background-color: white;
+            border: 1px solid #17a2b8;
+        }
+        
+        .badge {
+            padding: 0.4rem 0.6rem;
+            font-weight: 400;
+            font-size: 0.875rem;
+            text-transform: none;
+        }
+    </style>
 {% endblock %} 

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1 class="my-4">Start New Assessment for {{ project.name }}</h1>
+    <h1 class="my-4">Generate Responses for {{ project.name }}</h1>
     
     <form method="POST" action="{{ url_for('main.start_assessment', project_id=project.id) }}">
         <div class="form-group mb-4">
@@ -19,10 +19,10 @@
         </div>
 
         <div class="form-group mb-4">
-            <label for="temperature">Temperature:</label>
+            <label for="temperature">Conciseness:</label>
             <input type="number" class="form-control" id="temperature" name="temperature" 
                    value="0.5" step="0.1" min="0.`" max="0.7" required>
-            <small class="form-text text-muted">Adjust the creativity of the responses (0.1 to 0.7).</small>
+            <small class="form-text text-muted">Adjust the conciseness of the responses.  0.1 (more concise) to 0.7 (more verbose).</small>
         </div>
 
         <!-- Document Selection Section -->
@@ -63,7 +63,7 @@
 
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Assessment Questions</h5>
+                <h5 class="mb-0">Select Questions</h5>
                 <div class="custom-control custom-checkbox">
                     <input type="checkbox" class="custom-control-input" id="selectAllQuestions" checked>
                     <label class="custom-control-label" for="selectAllQuestions">Select All</label>
@@ -86,7 +86,7 @@
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary">Start Assessment</button>
+        <button type="submit" class="btn btn-primary">Generate Responses</button>
         <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-secondary">Cancel</a>
     </form>
 

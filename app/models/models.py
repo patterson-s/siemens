@@ -150,12 +150,13 @@ class EvaluationRun(db.Model):
     total_questions = db.Column(db.Integer, nullable=False)
     status_message = db.Column(db.String(255), nullable=True)
     
-    # Remove the document_ids column and keep only the relationship
+    # Remove the backref from here
+    responses = db.relationship('EvaluationResponse', lazy=True)
+    
+    # Keep other relationships
     documents = db.relationship('Document', 
                               secondary='univ_evaluation_documents',
                               lazy='dynamic')
-    
-    responses = db.relationship('EvaluationResponse', backref='evaluation_run', lazy=True)
 
 # Add association table for many-to-many relationship
 evaluation_documents = db.Table('univ_evaluation_documents',
@@ -167,13 +168,17 @@ class EvaluationResponse(db.Model):
     __tablename__ = 'univ_evaluation_responses'
     
     id = db.Column(db.Integer, primary_key=True)
-    evaluation_run_id = db.Column(db.Integer, db.ForeignKey('univ_evaluation_runs.id'), nullable=False)
     question_id = db.Column(db.Integer, db.ForeignKey('univ_project_questions.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('univ_projects.id'), nullable=True)
+    evaluation_run_id = db.Column(db.Integer, db.ForeignKey('univ_evaluation_runs.id'), nullable=False)
     response_text = db.Column(db.Text, nullable=False)
+    reviewed = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relationships
-    question = db.relationship('ProjectQuestion')
+    # Keep these relationships
+    question = db.relationship('ProjectQuestion', backref='responses')
+    project = db.relationship('Project', backref='responses')
+    evaluation_run = db.relationship('EvaluationRun')
 
 class APILog(db.Model):
     __tablename__ = 'univ_api_logs'

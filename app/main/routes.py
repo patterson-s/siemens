@@ -26,37 +26,96 @@ from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import SQLDatabaseToolkit
 from langchain.agents.format_scratchpad import format_to_openai_functions
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
-from sqlalchemy import desc, func, text
+from sqlalchemy import desc, func, text, distinct, case, and_
+from openai import OpenAI
 
 @bp.route('/')
 @bp.route('/index')
 @login_required
 def index():
-    # Get projects sorted by latest assessment date
-    projects = Project.query\
-        .outerjoin(EvaluationRun)\
-        .group_by(Project)\
-        .order_by(
-            # Sort by latest assessment date (nulls last)
-            func.max(EvaluationRun.created_at).desc().nullslast(),
-            # Secondary sort by round and name for consistent ordering
-            Project.name_of_round.desc(),
-            Project.name
-        )\
-        .all()
+    # Get all active projects
+    projects = Project.query.filter_by(active=True).all()
     
-    return render_template('main/index.html', 
+    # Count projects with all required documents
+    projects_with_docs = sum(
+        1 for p in projects 
+        if any(d.document_type == 'final_project_report' for d in p.documents) 
+        and any(d.document_type == 'external_evaluation' for d in p.documents)
+    )
+    
+    # Get total number of questions
+    total_questions = ProjectQuestion.query.count()
+    
+    # Count projects with all questions answered
+    projects_with_responses = sum(
+        1 for p in projects
+        if any(len(run.responses) == total_questions for run in p.evaluation_runs)
+    )
+    
+    # Count projects with the most recent responses reviewed
+    projects_reviewed = 0
+    for p in projects:
+        for run in p.evaluation_runs:
+            # Create a dictionary to track the most recent response for each question
+            latest_responses = {}
+            for response in run.responses:
+                question_id = response.question.id
+                # Update the latest response if it's the most recent one
+                if question_id not in latest_responses or response.created_at > latest_responses[question_id].created_at:
+                    latest_responses[question_id] = response
+            
+            # Check if all latest responses are reviewed
+            if all(latest_response.reviewed for latest_response in latest_responses.values()):
+                projects_reviewed += 1
+                break  # No need to check further runs for this project
+
+    return render_template('main/index.html',
                          title=Config.APP_NAME,
-                         projects=projects)
+                         projects=projects,
+                         projects_with_docs=projects_with_docs,
+                         projects_with_responses=projects_with_responses,
+                         projects_reviewed=projects_reviewed)
 
 @bp.route('/projects')
 @login_required
 def projects():
     search_query = request.args.get('search', '')
-    sort_by = request.args.get('sort', 'default')  # Default sort option
+    sort_by = request.args.get('sort', 'default')
+
+    # Get total number of questions
+    total_questions = ProjectQuestion.query.count()
+
+    # Subquery to get the most recent response for each question per project
+    latest_responses = db.session.query(
+        EvaluationResponse.project_id,
+        EvaluationResponse.question_id,
+        func.max(EvaluationResponse.created_at).label('max_created_at')
+    ).group_by(
+        EvaluationResponse.project_id,
+        EvaluationResponse.question_id
+    ).subquery()
+
+    # Query to get response counts and review counts for each project
+    response_stats = db.session.query(
+        EvaluationResponse.project_id,
+        func.count(distinct(EvaluationResponse.question_id)).label('answered_questions'),
+        func.sum(case((EvaluationResponse.reviewed == True, 1), else_=0)).label('reviewed_count')
+    ).join(
+        latest_responses,
+        and_(
+            EvaluationResponse.project_id == latest_responses.c.project_id,
+            EvaluationResponse.question_id == latest_responses.c.question_id,
+            EvaluationResponse.created_at == latest_responses.c.max_created_at
+        )
+    ).group_by(
+        EvaluationResponse.project_id
+    ).subquery()
 
     # Query only active projects from the database
-    active_projects = Project.query.filter_by(active=True)
+    active_projects = Project.query.filter_by(active=True).outerjoin(
+        response_stats,
+        Project.id == response_stats.c.project_id
+    )
 
     # Apply search filter
     if search_query:
@@ -76,8 +135,19 @@ def projects():
 
     active_projects = active_projects.all()
 
+    # Convert query results to dictionary with tuple values
+    stats_dict = {}
+    for project_id, answered, reviewed in db.session.query(
+        response_stats.c.project_id,
+        response_stats.c.answered_questions,
+        response_stats.c.reviewed_count
+    ).all():
+        stats_dict[project_id] = (answered or 0, reviewed or 0)
+
     return render_template('main/projects.html', 
-                         projects=active_projects, 
+                         projects=active_projects,
+                         total_questions=total_questions,
+                         response_counts=stats_dict,
                          title='Projects - ' + Config.APP_NAME)
 
 @bp.route('/questions')
@@ -114,8 +184,23 @@ def edit_question(question_id):
 @bp.route('/projects/<int:project_id>')
 @login_required
 def project_details(project_id):
-    project = Project.query.get_or_404(project_id)  # Fetch the project by ID
-    return render_template('main/project_details.html', project=project)  # Render the project details template 
+    project = Project.query.get_or_404(project_id)
+    
+    # Get the most recent response for each question using project_id
+    latest_responses = db.session.query(
+        EvaluationResponse
+    ).filter(
+        EvaluationResponse.project_id == project_id
+    ).distinct(
+        EvaluationResponse.question_id
+    ).order_by(
+        EvaluationResponse.question_id,
+        EvaluationResponse.created_at.desc()
+    ).all()
+
+    return render_template('main/project_details.html', 
+                         project=project,
+                         latest_responses=latest_responses)
 
 @bp.route('/projects/<int:project_id>/upload', methods=['GET', 'POST'])
 @login_required
@@ -268,7 +353,7 @@ def start_assessment(project_id):
     if request.method == 'POST':
         selected_model = request.form.get('model_select', Config.CLAUDE_MODEL)
         selected_questions = request.form.getlist('selected_questions')
-        selected_documents = request.form.getlist('selected_documents')  # Get selected documents
+        selected_documents = request.form.getlist('selected_documents')
         temperature = float(request.form.get('temperature', 0.7))
         
         if not selected_questions:
@@ -517,7 +602,10 @@ Please provide your analysis based on the available documents."""
                     evaluation_response = EvaluationResponse(
                         evaluation_run_id=evaluation.id,
                         question_id=question.id,
-                        response_text=response.content[0].text
+                        project_id=project_id,
+                        response_text=response.content[0].text,
+                        reviewed=False,
+                        created_at=datetime.utcnow()
                     )
                     db.session.add(evaluation_response)
                     db.session.commit()
@@ -960,3 +1048,58 @@ def update_project(project_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}) 
+
+@bp.route('/test-prompt', methods=['GET', 'POST'])
+@login_required
+def test_prompt():
+    response_text = None
+    if request.method == 'POST':
+        user_prompt = request.form.get('prompt', '')
+        if user_prompt:
+            try:
+                client = OpenAI(api_key=Config.OPENAI_API_KEY)
+                full_prompt = Config.DEFAULT_SYSTEM_PROMPT + "\n\n" + user_prompt
+                
+                response = client.chat.completions.create(
+                    model="o3-mini",
+                    messages=[
+                        {"role": "user", "content": full_prompt}
+                    ]
+                )
+                
+                response_text = response.choices[0].message.content
+                
+            except Exception as e:
+                flash(f'Error: {str(e)}', 'error')
+    
+    return render_template('main/test_prompt.html', 
+                         response=response_text,
+                         title='Test Prompt') 
+
+@bp.route('/mark_response_reviewed/<int:response_id>', methods=['POST'])
+@login_required
+def mark_response_reviewed(response_id):
+    response = EvaluationResponse.query.get_or_404(response_id)
+    
+    try:
+        response.reviewed = True
+        response.reviewed_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500 
+
+@bp.route('/update_response/<int:response_id>', methods=['POST'])
+@login_required
+def update_response(response_id):
+    response = EvaluationResponse.query.get_or_404(response_id)
+    
+    try:
+        data = request.get_json()
+        response.response_text = data.get('response_text')
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500 
