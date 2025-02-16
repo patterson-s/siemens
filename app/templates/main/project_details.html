@@ -1198,7 +1198,15 @@ $(document).ready(function() {
         });
     };
 
-    // Add form handler for metrics form
+    // Add form change tracking for metrics form
+    let metricsFormChanged = false;
+    const metricsForm = $('#metricsForm');
+
+    metricsForm.find('input, select').on('change', function() {
+        metricsFormChanged = true;
+    });
+
+    // Update metrics form handler to check for changes
     $('#metricsForm').on('submit', function(e) {
         e.preventDefault();
         
@@ -1208,6 +1216,7 @@ $(document).ready(function() {
             data: $(this).serialize(),
             success: function(response) {
                 if (response.success) {
+                    metricsFormChanged = false;  // Reset the change tracker
                     // Show success message
                     const alertDiv = $('<div class="alert alert-success alert-dismissible fade show" role="alert">')
                         .text('Project scoring updated successfully')
@@ -1227,6 +1236,16 @@ $(document).ready(function() {
                 alert('Error updating project scoring. Please try again.');
             }
         });
+    });
+
+    // Add window beforeunload handler
+    $(window).on('beforeunload', function(e) {
+        if (metricsFormChanged || formChanged) {
+            // For modern browsers
+            e.preventDefault();
+            // For older browsers
+            return "You have unsaved changes. Are you sure you want to leave?";
+        }
     });
 });
 </script>
