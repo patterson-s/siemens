@@ -8,19 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Encryption for AI response data using Fernet encryption
-- Added property getter/setter for response_text in EvaluationResponse model
-- Added delay and redirect to project details after assessment completion
+- Added Proejct Scoring form and additional data fields to project table
+- Added preview uploaded document and search within document features
 
 ### Changed
 - Updated response text handling to use encryption
-- Modified assessment completion behavior to return to project details
-- Improved text display formatting for AI responses
-- Updated UI text for better clarity ("No responses generated" vs "No responses available")
-
-### Fixed
-- Fixed response text encryption/decryption implementation
-- Fixed redirect after assessment completion
-- Fixed text formatting in responses display
+- updated project list view with improved styling of buttons and assessment/review status
 
 ### Security
 - Added encryption for sensitive response data

@@ -540,7 +540,7 @@
 
                         <h5 class="mt-4 mb-2">2.5 Sustainability</h5>
                         <div class="form-group row mb-2">
-                            <label for="rate_sustainability" class="col-8 col-form-label metrics-label">Rating:</label>
+                            <label for="rate_sustainability" class="col-8 col-form-label metrics-label">To what extent are project results likely to be sustained beyond project end?</label>
                             <div class="col-4">
                                 <select class="form-control" id="rate_sustainability" name="rate_sustainability">
                                     <option value="" {% if not project.rate_sustainability %}selected{% endif %}>Select...</option>
@@ -574,19 +574,7 @@
                             </select>
                         </div>
 
-                        <h5 class="mt-4 mb-2">2.8 Evaluation Quality</h5>
-                        <div class="form-group mb-3">
-                            <label for="rate_quality_evaluation" class="d-block mb-2 metrics-label">Rate the overall quality of the external evaluation:</label>
-                            <select class="form-control" id="rate_quality_evaluation" name="rate_quality_evaluation">
-                                <option value="" {% if not project.rate_quality_evaluation %}selected{% endif %}>Select...</option>
-                                <option value="High" {% if project.rate_quality_evaluation == 'High' %}selected{% endif %}>High Value (23-28)</option>
-                                <option value="Medium-High" {% if project.rate_quality_evaluation == 'Medium-High' %}selected{% endif %}>Medium-High Value (17-22)</option>
-                                <option value="Medium-Low" {% if project.rate_quality_evaluation == 'Medium-Low' %}selected{% endif %}>Medium-Low Value (11-16)</option>
-                                <option value="Low" {% if project.rate_quality_evaluation == 'Low' %}selected{% endif %}>Low Value (10 or below)</option>
-                            </select>
-                        </div>
-
-                        <h5 class="mt-4 mb-2">Local Significance</h5>
+                        <h5 class="mt-4 mb-2">Contributions Summary</h5>
                         <div class="form-group mb-3">
                             <label for="rate_signif_frameworks" class="d-block mb-2 metrics-label">Rate contributions to Strengthened Governance and Legal Frameworks :</label>
                             <select class="form-control" id="rate_signif_frameworks" name="rate_signif_frameworks">
@@ -622,6 +610,20 @@
                                 <option value="not operating in this realm" {% if project.rate_signif_capacity == 'not operating in this realm' %}selected{% endif %}>Not Operating in This Realm</option>
                             </select>
                         </div>
+
+
+                        <h5 class="mt-4 mb-2">Evaluation Quality</h5>
+                        <div class="form-group mb-3">
+                            <label for="rate_quality_evaluation" class="d-block mb-2 metrics-label">Rate the overall quality of the external evaluation:</label>
+                            <select class="form-control" id="rate_quality_evaluation" name="rate_quality_evaluation">
+                                <option value="" {% if not project.rate_quality_evaluation %}selected{% endif %}>Select...</option>
+                                <option value="High" {% if project.rate_quality_evaluation == 'High' %}selected{% endif %}>High Value (23-28)</option>
+                                <option value="Medium-High" {% if project.rate_quality_evaluation == 'Medium-High' %}selected{% endif %}>Medium-High Value (17-22)</option>
+                                <option value="Medium-Low" {% if project.rate_quality_evaluation == 'Medium-Low' %}selected{% endif %}>Medium-Low Value (11-16)</option>
+                                <option value="Low" {% if project.rate_quality_evaluation == 'Low' %}selected{% endif %}>Low Value (10 or below)</option>
+                            </select>
+                        </div>
+
 
                         <button type="submit" class="btn btn-primary mt-3">Save Ratings</button>
                     </form>
@@ -794,7 +796,7 @@
         font-weight: 400 !important;
     }
     .metrics-label {
-        font-size: 0.65rem;  /* 14px if base is 16px */
+        font-size: 0.75rem;  /* 14px if base is 16px */
         line-height: 1.2;
     }
     .document-text {

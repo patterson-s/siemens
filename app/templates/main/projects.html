@@ -82,13 +82,13 @@
                                         {% set has_original_proposal = project.documents | selectattr('document_type', 'equalto', 'original_proposal') | list | length > 0 %}
                                         
                                         {% if has_original_proposal %}
-                                            <span class="badge badge-outline-success">Original Proposal</span>
+                                            <span class="badge badge-success">Original Proposal</span>
                                         {% endif %}
                                         {% if has_project_report %}
-                                            <span class="badge badge-outline-success">Project Report</span>
+                                            <span class="badge badge-success">Project Report</span>
                                         {% endif %}
                                         {% if has_external_evaluation %}
-                                            <span class="badge badge-outline-success">External Evaluation</span>
+                                            <span class="badge badge-success">External Evaluation</span>
                                         {% endif %}
                                     </div>
                                 </td>
