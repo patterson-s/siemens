@@ -31,10 +31,10 @@
                 <div class="col-md-6">
                     <div class="card bg-light">
                         <div class="card-body">
-                            <h6 class="card-title">Token Usage</h6>
-                            <p class="mb-1">Input: <span id="inputTokens">0</span></p>
-                            <p class="mb-1">Output: <span id="outputTokens">0</span></p>
-                            <p class="mb-0">Total: <span id="totalTokens">0</span></p>
+                            <h5 class="card-title">Token Usage</h5>
+                            <p>Input: {{ evaluation.estimated_input_tokens|default(0)|int }}</p>
+                            <p>Output: {{ evaluation.total_output_tokens|default(0)|int }}</p>
+                            <p>Total: {{ (evaluation.estimated_input_tokens|default(0) + evaluation.total_output_tokens|default(0))|int }}</p>
                         </div>
                     </div>
                 </div>
@@ -67,50 +67,46 @@ function checkProgress() {
         .then(response => response.json())
         .then(data => {
             const progress = (data.questions_answered / data.total_questions) * 100;
-            document.getElementById('progressBar').style.width = progress + '%';
-            document.getElementById('progressBar').innerText = Math.round(progress) + '%';
+            
+            // Update progress bar
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = `${progress}%`;
+            progressBar.innerText = `${Math.round(progress)}%`;
+            progressBar.setAttribute('aria-valuenow', progress);
+            
+            // Update question count
             document.getElementById('questionCount').innerText = 
                 `Processed ${data.questions_answered} out of ${data.total_questions} questions`;
             
-            // Update model info
+            // Update model used
             document.getElementById('modelUsed').innerText = 
-                `Using ${data.model_used.replace('claude-', 'Claude ').replace('-latest', '').replace('-', '.')}`;
+                `Using ${data.model_used}`;
             
-            // Update token usage
-            document.getElementById('inputTokens').innerText = formatNumber(data.token_usage.input);
-            document.getElementById('outputTokens').innerText = formatNumber(data.token_usage.output);
-            document.getElementById('totalTokens').innerText = 
-                formatNumber(data.token_usage.input + data.token_usage.output);
-            
-            // Update estimated time
-            if (data.estimated_remaining > 0) {
-                document.getElementById('estimatedTime').innerText = 
-                    `Estimated time remaining: ${formatTime(data.estimated_remaining)}`;
-            }
-            
-            // Handle status message
-            const statusDiv = document.getElementById('statusMessage');
-            if (data.status_message) {
-                statusDiv.innerText = data.status_message;
-                statusDiv.style.display = 'block';
-            } else {
-                statusDiv.style.display = 'none';
-            }
-            
-            if (data.is_complete) {
+            // If completed, show completion message and redirect
+            if (data.is_completed) {
                 document.getElementById('completionMessage').style.display = 'block';
                 setTimeout(() => {
-                    window.location.href = '/projects/{{ project.id }}/evaluation/{{ evaluation_id }}';
+                    window.location.href = "{{ url_for('main.view_assessment', project_id=project.id, evaluation_id=evaluation_id) }}";
                 }, 2000);
                 return;
             }
             
-            if (data.status !== 'completed' && data.status !== 'failed') {
+            // Continue checking if not complete
+            if (!data.is_completed) {
                 setTimeout(checkProgress, 2000);
             }
+        })
+        .catch(error => {
+            console.error('Error checking progress:', error);
+            document.getElementById('statusMessage').innerText = 
+                'Error checking progress. Please refresh the page.';
+            document.getElementById('statusMessage').style.display = 'block';
         });
 }
 
-checkProgress();
+// Start checking progress when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    checkProgress();
+});
 </script>
 {% endblock %} 

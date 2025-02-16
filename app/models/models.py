@@ -4,9 +4,11 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash  # Add this for password hashing
 from enum import Enum
 from sqlalchemy.dialects.postgresql import ARRAY
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from flask import current_app
 import logging
+from config import Config
+from base64 import b64encode
 
 class User(UserMixin, db.Model):
     __tablename__ = 'univ_users'
@@ -128,6 +130,34 @@ class Project(db.Model):
     notes = db.Column(db.Text)
     active = db.Column(db.Boolean, default=True, nullable=False)
     
+    # Numeric count fields
+    num_pubpri_dialogues = db.Column(db.Integer)
+    num_legal_contribuntions = db.Column(db.Integer)
+    num_implement_mechanisms = db.Column(db.Integer)
+    num_voluntary_standards = db.Column(db.Integer)
+    num_voluntary_signatories = db.Column(db.Integer)
+    num_organizations_supported = db.Column(db.Integer)
+    
+    # Rating fields
+    rate_output_achieved = db.Column(db.Integer)
+    rate_impact_evidence = db.Column(db.String(25))
+    rate_sustainability = db.Column(db.Integer)
+    rate_project_design = db.Column(db.Integer)
+    rate_project_management = db.Column(db.String(50))
+    rate_quality_evaluation = db.Column(db.String(25))
+    rate_impact_progress = db.Column(db.Integer)
+    rate_signif_frameworks = db.Column(db.String(50))
+    rate_signif_practices = db.Column(db.String(50))
+    rate_signif_capacity = db.Column(db.String(50))
+    
+    # Add these new fields
+    num_new_courses = db.Column(db.Integer)
+    num_individ_trained = db.Column(db.Integer)
+    num_training_activities = db.Column(db.Integer)
+    num_organizaed_events = db.Column(db.Integer)
+    num_event_attendees = db.Column(db.Integer)
+    num_publications = db.Column(db.Integer)
+    
     # Relationships
     documents = db.relationship('Document', backref='project', lazy=True)
     evaluation_runs = db.relationship('EvaluationRun', backref='project', lazy=True)
@@ -171,14 +201,40 @@ class EvaluationResponse(db.Model):
     question_id = db.Column(db.Integer, db.ForeignKey('univ_project_questions.id'), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey('univ_projects.id'), nullable=True)
     evaluation_run_id = db.Column(db.Integer, db.ForeignKey('univ_evaluation_runs.id'), nullable=False)
-    response_text = db.Column(db.Text, nullable=False)
+    _response_text = db.Column('response_text', db.Text, nullable=False)  # Rename to match Document model pattern
     reviewed = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Keep these relationships
+    # Relationships
     question = db.relationship('ProjectQuestion', backref='responses')
     project = db.relationship('Project', backref='responses')
     evaluation_run = db.relationship('EvaluationRun')
+
+    def get_response_text(self):
+        """Decrypt and return response text"""
+        if not self._response_text:
+            return None
+        try:
+            f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
+            return f.decrypt(self._response_text.encode()).decode()
+        except Exception as e:
+            current_app.logger.error(f"Decryption error: {str(e)}")
+            return "Error: Could not decrypt response"
+
+    def set_response_text(self, value):
+        """Encrypt and store response text"""
+        if not value:
+            self._response_text = None
+            return
+        try:
+            f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
+            self._response_text = f.encrypt(value.encode()).decode()
+        except Exception as e:
+            current_app.logger.error(f"Encryption error: {str(e)}")
+            raise ValueError(f"Could not encrypt response text: {str(e)}")
+
+    # Property to maintain compatibility
+    response_text = property(get_response_text, set_response_text)
 
 class APILog(db.Model):
     __tablename__ = 'univ_api_logs'

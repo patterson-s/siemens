@@ -20,7 +20,7 @@
                         {% for value, label in document_types %}
                             <label class="btn btn-outline-primary">
                                 <input type="radio" name="document_type" value="{{ value }}" required> 
-                                {{ label|replace('_', ' ')|title }}
+                                {{ label }}
                             </label>
                         {% endfor %}
                     </div>

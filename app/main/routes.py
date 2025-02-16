@@ -3,7 +3,7 @@ from app.main import bp
 from app.models.models import Project, ProjectQuestion, Document, EvaluationRun, EvaluationResponse, EvaluationStatus, APILog, ChatSession, ChatMessage, DocumentType  # Import ChatSession and ChatMessage
 from app import db  # Import the db instance
 import os
-from anthropic import Anthropic
+from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
 from config import Config
 from threading import Thread
 import pdfplumber
@@ -28,6 +28,16 @@ from langchain.agents.format_scratchpad import format_to_openai_functions
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 from sqlalchemy import desc, func, text, distinct, case, and_
 from openai import OpenAI
+import tiktoken  # Import tiktoken for token counting
+from flask_wtf.csrf import generate_csrf
+from cryptography.fernet import Fernet  # Add this at the top with other imports
+
+# Update the DOCUMENT_TYPES tuple to show in the desired order
+DOCUMENT_TYPES = [
+    ('original_proposal', 'Original Proposal'),
+    ('final_project_report', 'Project Report'),
+    ('external_evaluation', 'External Evaluation')
+]
 
 @bp.route('/')
 @bp.route('/index')
@@ -200,7 +210,29 @@ def project_details(project_id):
 
     return render_template('main/project_details.html', 
                          project=project,
-                         latest_responses=latest_responses)
+                         latest_responses=latest_responses,
+                         csrf_token=generate_csrf())
+
+def extract_text_from_file(file):
+    """Extract text content from uploaded files."""
+    # Get file extension
+    file_ext = file.filename.rsplit('.', 1)[1].lower()
+    
+    # Read file content
+    file_content = file.read()
+    
+    # Reset file pointer for content extraction
+    file.seek(0)
+    
+    # Extract text based on file type
+    if file_ext == 'pdf':
+        return extract_text_from_pdf(file)
+    elif file_ext == 'txt':
+        return file_content.decode('utf-8')
+    elif file_ext in ['doc', 'docx']:
+        return extract_text_from_doc(file)
+    else:
+        raise ValueError(f"Unsupported file type: {file_ext}")
 
 @bp.route('/projects/<int:project_id>/upload', methods=['GET', 'POST'])
 @login_required
@@ -209,54 +241,35 @@ def upload_document(project_id):
     
     if request.method == 'POST':
         if 'file' not in request.files:
-            flash('No file selected', 'error')
+            flash('No file selected', 'danger')
             return redirect(request.url)
             
         file = request.files['file']
-        document_type = request.form.get('document_type')
-        
         if file.filename == '':
-            flash('No file selected', 'error')
+            flash('No file selected', 'danger')
             return redirect(request.url)
             
         if file and allowed_file(file.filename):
             try:
-                # Get file extension
-                file_ext = file.filename.rsplit('.', 1)[1].lower()
+                # Extract text from the document
+                text = extract_text_from_file(file)
                 
-                # Read file content and get size
-                file_content = file.read()
-                file_size = len(file_content)  # Get file size in bytes
-                
-                # Reset file pointer for content extraction
-                file.seek(0)
-                
-                # Extract text based on file type
-                if file_ext == 'pdf':
-                    content = extract_text_from_pdf(file)
-                elif file_ext == 'txt':
-                    content = file_content.decode('utf-8')
-                elif file_ext in ['doc', 'docx']:
-                    content = extract_text_from_doc(file)
-                
-                if not content:
-                    raise ValueError("No content extracted from file")
-
-                print(f"Extracted content length: {len(content)}")  # Debug log
+                # Calculate word count
+                word_count = len(text.split())
                 
                 # Create new document
                 document = Document(
                     project_id=project.id,
                     filename=secure_filename(file.filename),
-                    file_type=file_ext,
-                    document_type=document_type,
-                    file_size=file_size,
-                    content_preview=content[:1000] if content else None
+                    file_type=file.content_type,
+                    document_type=request.form.get('document_type'),
+                    file_size=word_count,  # Store word count instead of file size
+                    content_preview=text[:1000] if text else None
                 )
                 
-                # Set encrypted content with error checking
+                # Encrypt and set the content
                 try:
-                    document.set_content(content)
+                    document.set_content(text)
                     print(f"Content encrypted successfully")  # Debug log
                 except Exception as e:
                     raise ValueError(f"Encryption failed: {str(e)}")
@@ -269,22 +282,21 @@ def upload_document(project_id):
                 if not saved_doc._content:
                     raise ValueError("Content was not saved to database")
                 
-                flash('Document uploaded successfully', 'success')
+                flash(f'Document uploaded successfully. Word count: {word_count}', 'success')
                 return redirect(url_for('main.project_details', project_id=project.id))
                 
             except Exception as e:
                 db.session.rollback()
-                flash(f'Error processing document: {str(e)}', 'error')
-                print(f"Upload error: {str(e)}")  # Debug log
+                flash(f'Error processing document: {str(e)}', 'danger')
                 return redirect(request.url)
                 
         else:
-            flash('Invalid file type. Supported formats: PDF, TXT, DOC, DOCX', 'error')
+            flash('Invalid file type. Supported formats: PDF, TXT, DOC, DOCX', 'danger')
             return redirect(request.url)
     
     return render_template('main/upload_document.html', 
                          project=project,
-                         document_types=DocumentType.choices())
+                         document_types=DOCUMENT_TYPES)
 
 @bp.route('/uploads/<path:filename>')
 def uploaded_file(filename):
@@ -346,64 +358,89 @@ def process_document(project_id, document_id):
         print(f"Error processing file: {e}")
         return jsonify({'error': str(e)}), 500
 
+def count_tokens(text):
+    """Count tokens using tiktoken with cl100k_base encoding (used by Claude)"""
+    encoding = tiktoken.get_encoding("cl100k_base")
+    return len(encoding.encode(text))
+
 @bp.route('/projects/<int:project_id>/start_assessment', methods=['GET', 'POST'])
 @login_required
 def start_assessment(project_id):
     project = Project.query.get_or_404(project_id)
-    if request.method == 'POST':
-        selected_model = request.form.get('model_select', Config.CLAUDE_MODEL)
-        selected_questions = request.form.getlist('selected_questions')
-        selected_documents = request.form.getlist('selected_documents')
-        temperature = float(request.form.get('temperature', 0.7))
-        
-        if not selected_questions:
-            flash('Please select at least one question for the assessment.', 'danger')
-            return redirect(url_for('main.start_assessment', project_id=project.id))
-            
-        if not selected_documents:
-            flash('Please select at least one document for the assessment.', 'danger')
-            return redirect(url_for('main.start_assessment', project_id=project.id))
-        
-        # Create new evaluation run
-        evaluation = EvaluationRun(
-            project_id=project.id,
-            system_prompt=Config.DEFAULT_SYSTEM_PROMPT,
-            status=EvaluationStatus.IN_PROGRESS,
-            model_used=selected_model,
-            total_questions=len(selected_questions)
-        )
-        
-        # Add selected documents to the evaluation
-        selected_doc_objects = Document.query.filter(Document.id.in_(selected_documents)).all()
-        evaluation.documents.extend(selected_doc_objects)
-        
-        db.session.add(evaluation)
-        db.session.commit()
-        
-        # Start the evaluation process in a background thread
-        thread = Thread(target=run_evaluation, 
-                       args=(project.id, evaluation.id, selected_questions, temperature, selected_documents))
-        thread.daemon = True
-        thread.start()
-        
-        return render_template('main/assessment_progress.html',
-                             project=project, 
-                             total_questions=len(selected_questions), 
-                             evaluation_id=evaluation.id)
-    
-    # GET request - show the form
     questions = ProjectQuestion.query.order_by(ProjectQuestion.order).all()
-    return render_template('main/start_assessment.html', 
-                         project=project, 
-                         config=Config,
-                         questions=questions)
+    
+    if request.method == 'POST':
+        selected_docs = request.form.getlist('selected_documents')
+        selected_questions = request.form.getlist('selected_questions')
+        
+        if not selected_docs or not selected_questions:
+            flash('Please select at least one document and one question', 'warning')
+            return redirect(request.url)
+            
+        try:
+            # Get the selected documents' content
+            documents = Document.query.filter(Document.id.in_(selected_docs)).all()
+            total_doc_content = "\n\n".join(doc.get_content() for doc in documents)
+            
+            # Create new evaluation run
+            evaluation = EvaluationRun(
+                project_id=project.id,
+                model_used=request.form.get('model_select', Config.CLAUDE_MODEL),
+                system_prompt=Config.DEFAULT_SYSTEM_PROMPT,
+                status=EvaluationStatus.IN_PROGRESS,
+                total_questions=len(selected_questions)
+            )
+            
+            # Add documents to evaluation
+            evaluation.documents.extend(documents)
+            
+            # Calculate tokens for documents and system prompt once
+            doc_and_system_tokens = count_tokens(f"{Config.DEFAULT_SYSTEM_PROMPT}\n\n{total_doc_content}")
+            
+            # Add tokens for each question prompt
+            question_tokens = sum(
+                count_tokens(question.prompt)
+                for question in ProjectQuestion.query.filter(ProjectQuestion.id.in_(selected_questions)).all()
+            )
+            
+            # Total input tokens is system prompt + documents + (questions * number of questions)
+            evaluation.estimated_input_tokens = doc_and_system_tokens + question_tokens
+            
+            db.session.add(evaluation)
+            db.session.commit()
+            
+            # Start the evaluation process in a background thread
+            temperature = float(request.form.get('temperature', 0.5))
+            thread = Thread(target=run_evaluation, 
+                          args=(project.id, evaluation.id, selected_questions, temperature, selected_docs))
+            thread.daemon = True
+            thread.start()
+            
+            # Redirect to the assessment progress page
+            return render_template('main/assessment_progress.html',
+                                project=project,
+                                total_questions=len(selected_questions),
+                                evaluation_id=evaluation.id,
+                                evaluation=evaluation)
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error starting assessment: {str(e)}', 'danger')
+            return redirect(request.url)
+    
+    return render_template('main/start_assessment.html',
+                         project=project,
+                         questions=questions,
+                         document_types=DOCUMENT_TYPES)
 
-@bp.route('/projects/<int:project_id>/evaluation/<int:evaluation_id>')
+@bp.route('/projects/<int:project_id>/assessment/<int:evaluation_id>')
 @login_required
 def view_assessment(project_id, evaluation_id):
-    project = Project.query.get_or_404(project_id)
     evaluation = EvaluationRun.query.get_or_404(evaluation_id)
-    return render_template('main/view_assessment.html', project=project, evaluation=evaluation)
+    # When passing responses to template, no changes needed as template will use get_response_text()
+    return render_template('main/view_assessment.html', 
+                         evaluation=evaluation,
+                         project=evaluation.project)
 
 @bp.route('/setup/add_test_questions')
 def add_test_questions():
@@ -452,43 +489,29 @@ def add_test_questions():
 @login_required
 def check_assessment_progress(evaluation_id):
     evaluation = EvaluationRun.query.get_or_404(evaluation_id)
-    responses = EvaluationResponse.query.filter_by(evaluation_run_id=evaluation_id).all()
-    questions_answered = len(responses)
     
-    # Get token usage for this evaluation
-    token_stats = db.session.query(
-        db.func.sum(APILog.input_tokens).label('total_input'),
-        db.func.sum(APILog.output_tokens).label('total_output')
+    # Count completed responses using correct column name
+    completed_responses = EvaluationResponse.query.filter_by(evaluation_run_id=evaluation_id).count()
+    
+    # Get total output tokens from API logs
+    output_tokens = db.session.query(
+        func.sum(APILog.output_tokens)
     ).filter(
         APILog.evaluation_id == evaluation_id,
         APILog.success == True
-    ).first()
+    ).scalar() or 0
     
-    # Calculate average time per question for estimation
-    if questions_answered > 0:
-        avg_time = db.session.query(
-            db.func.avg(APILog.end_time - APILog.start_time)
-        ).filter(
-            APILog.evaluation_id == evaluation_id,
-            APILog.success == True
-        ).scalar()
-        estimated_remaining = (evaluation.total_questions - questions_answered) * (avg_time.total_seconds() if avg_time else 0)
-    else:
-        estimated_remaining = 0
-    
-    return jsonify({
+    # Calculate progress
+    progress = {
         'status': evaluation.status.value,
-        'questions_answered': questions_answered,
         'total_questions': evaluation.total_questions,
-        'is_complete': evaluation.status == EvaluationStatus.COMPLETED,
+        'questions_answered': completed_responses,
         'model_used': evaluation.model_used,
-        'status_message': evaluation.status_message,
-        'token_usage': {
-            'input': token_stats.total_input or 0,
-            'output': token_stats.total_output or 0
-        },
-        'estimated_remaining': round(estimated_remaining)
-    })
+        'output_tokens': output_tokens,
+        'is_completed': evaluation.status == EvaluationStatus.COMPLETED
+    }
+    
+    return jsonify(progress)
 
 def run_evaluation(project_id, evaluation_id, selected_question_ids, temperature, selected_documents):
     """Run the evaluation process in the background"""
@@ -603,10 +626,11 @@ Please provide your analysis based on the available documents."""
                         evaluation_run_id=evaluation.id,
                         question_id=question.id,
                         project_id=project_id,
-                        response_text=response.content[0].text,
                         reviewed=False,
                         created_at=datetime.utcnow()
                     )
+                    # Use the property setter for encryption
+                    evaluation_response.response_text = response.content[0].text
                     db.session.add(evaluation_response)
                     db.session.commit()
                     
@@ -1097,9 +1121,80 @@ def update_response(response_id):
     
     try:
         data = request.get_json()
+        # Use the property setter for encryption
         response.response_text = data.get('response_text')
         db.session.commit()
         return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500 
+
+@bp.route('/project/<int:project_id>/update_metrics', methods=['POST'])
+@login_required
+def update_project_metrics(project_id):
+    project = Project.query.get_or_404(project_id)
+    
+    try:
+        # Update numeric counts
+        project.num_pubpri_dialogues = request.form.get('num_pubpri_dialogues', type=int)
+        project.num_legal_contribuntions = request.form.get('num_legal_contribuntions', type=int)
+        project.num_implement_mechanisms = request.form.get('num_implement_mechanisms', type=int)
+        project.num_voluntary_standards = request.form.get('num_voluntary_standards', type=int)
+        project.num_voluntary_signatories = request.form.get('num_voluntary_signatories', type=int)
+        project.num_organizations_supported = request.form.get('num_organizations_supported', type=int)
+        project.num_new_courses = request.form.get('num_new_courses', type=int)
+        project.num_individ_trained = request.form.get('num_individ_trained', type=int)
+        project.num_training_activities = request.form.get('num_training_activities', type=int)
+        project.num_organizaed_events = request.form.get('num_organizaed_events', type=int)
+        project.num_event_attendees = request.form.get('num_event_attendees', type=int)
+        project.num_publications = request.form.get('num_publications', type=int)
+        
+        # Update ratings
+        project.rate_output_achieved = request.form.get('rate_output_achieved', type=int)
+        project.rate_impact_evidence = request.form.get('rate_impact_evidence')  # String value
+        project.rate_sustainability = request.form.get('rate_sustainability', type=int)
+        project.rate_project_design = request.form.get('rate_project_design', type=int)
+        project.rate_project_management = request.form.get('rate_project_management')  # String value
+        project.rate_quality_evaluation = request.form.get('rate_quality_evaluation')  # String value
+        project.rate_impact_progress = request.form.get('rate_impact_progress', type=int)
+        
+        # Update significance ratings
+        project.rate_signif_frameworks = request.form.get('rate_signif_frameworks')
+        project.rate_signif_practices = request.form.get('rate_signif_practices')
+        project.rate_signif_capacity = request.form.get('rate_signif_capacity')
+        
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}) 
+
+@bp.route('/projects/document/<int:document_id>/preview')
+@login_required
+def preview_document(document_id):
+    try:
+        document = Document.query.get_or_404(document_id)
+        
+        # Check if user has access to this document's project
+        if not current_user.is_admin:
+            project = Project.query.get(document.project_id)
+            if not project or not project.active:
+                return jsonify({
+                    'success': False,
+                    'error': 'Access denied'
+                }), 403
+        
+        # Get decrypted content
+        content = document.get_content()
+        
+        return jsonify({
+            'success': True,
+            'content': content,
+            'filename': document.filename
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500 

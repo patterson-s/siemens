@@ -36,22 +36,61 @@
             </div>
             <div class="card-body">
                 {% if project.documents %}
-                    {% for document in project.documents %}
-                    <div class="custom-control custom-checkbox mb-2">
-                        <input type="checkbox" class="custom-control-input document-checkbox" 
-                               id="document_{{ document.id }}" 
-                               name="selected_documents" 
-                               value="{{ document.id }}"
-                               checked>
-                        <label class="custom-control-label" for="document_{{ document.id }}">
-                            <strong>{{ document.filename }}</strong>
-                            <span class="text-muted">({{ document.document_type|replace('_', ' ')|title }})</span>
-                            <small class="text-muted d-block">
-                                Size: {{ (document.file_size / 1024)|round|int }} KB | 
-                                Type: {{ document.file_type|upper }}
-                            </small>
-                        </label>
-                    </div>
+                    {# Original Proposal documents #}
+                    {% for document in project.documents if document.document_type == 'original_proposal' %}
+                        <div class="custom-control custom-checkbox mb-2">
+                            <input type="checkbox" class="custom-control-input document-checkbox" 
+                                   id="document_{{ document.id }}" 
+                                   name="selected_documents" 
+                                   value="{{ document.id }}"
+                                   checked>
+                            <label class="custom-control-label" for="document_{{ document.id }}">
+                                <strong>{{ document.filename }}</strong>
+                                <span class="text-muted">({{ document.document_type|replace('_', ' ')|title }})</span>
+                                <small class="text-muted d-block">
+                                    Size: {{ "{:,}".format(document.file_size) }} words | 
+                                    Type: {{ document.file_type|upper }}
+                                </small>
+                            </label>
+                        </div>
+                    {% endfor %}
+
+                    {# Project Report documents #}
+                    {% for document in project.documents if document.document_type == 'final_project_report' %}
+                        <div class="custom-control custom-checkbox mb-2">
+                            <input type="checkbox" class="custom-control-input document-checkbox" 
+                                   id="document_{{ document.id }}" 
+                                   name="selected_documents" 
+                                   value="{{ document.id }}"
+                                   checked>
+                            <label class="custom-control-label" for="document_{{ document.id }}">
+                                <strong>{{ document.filename }}</strong>
+                                <span class="text-muted">({{ document.document_type|replace('_', ' ')|title }})</span>
+                                <small class="text-muted d-block">
+                                    Size: {{ "{:,}".format(document.file_size) }} words | 
+                                    Type: {{ document.file_type|upper }}
+                                </small>
+                            </label>
+                        </div>
+                    {% endfor %}
+
+                    {# External Evaluation documents #}
+                    {% for document in project.documents if document.document_type == 'external_evaluation' %}
+                        <div class="custom-control custom-checkbox mb-2">
+                            <input type="checkbox" class="custom-control-input document-checkbox" 
+                                   id="document_{{ document.id }}" 
+                                   name="selected_documents" 
+                                   value="{{ document.id }}"
+                                   checked>
+                            <label class="custom-control-label" for="document_{{ document.id }}">
+                                <strong>{{ document.filename }}</strong>
+                                <span class="text-muted">({{ document.document_type|replace('_', ' ')|title }})</span>
+                                <small class="text-muted d-block">
+                                    Size: {{ "{:,}".format(document.file_size) }} words | 
+                                    Type: {{ document.file_type|upper }}
+                                </small>
+                            </label>
+                        </div>
                     {% endfor %}
                 {% else %}
                     <div class="alert alert-warning">
@@ -120,6 +159,34 @@
                 selectAllQuestions.checked = Array.from(allQuestions).every(cb => cb.checked);
             }
         });
+
+        // Update the checkStatus function
+        function checkStatus() {
+            $.get(`/projects/${projectId}/assessment/${evaluationId}/status`, function(response) {
+                if (response.status === 'completed') {
+                    $('#status').html('<div class="alert alert-success">Assessment complete. Redirecting...</div>');
+                    setTimeout(function() {
+                        window.location.href = `/projects/${projectId}`;
+                    }, 1500);
+                } else if (response.status === 'failed') {
+                    $('#status').html(`<div class="alert alert-danger">Assessment failed: ${response.message}</div>`);
+                    clearInterval(statusInterval);
+                } else {
+                    $('#status').html(`
+                        <div class="alert alert-info">
+                            ${response.message || 'Processing...'}
+                            <div class="progress mt-2">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" 
+                                     style="width: ${response.progress || 0}%">
+                                    ${response.progress || 0}%
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                }
+            });
+        }
     </script>
     {% endblock %}
 {% endblock %} 
