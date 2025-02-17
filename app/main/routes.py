@@ -1198,3 +1198,9 @@ def preview_document(document_id):
             'success': False,
             'error': str(e)
         }), 500 
+
+@bp.route('/project_table')
+@login_required
+def project_table():
+    projects = Project.query.all()
+    return render_template('main/project_table.html', projects=projects) 

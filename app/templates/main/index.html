@@ -24,6 +24,11 @@
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
                                 {{ projects|length }}
                             </div>
+                            <div class="mt-2">
+                                <a href="{{ url_for('main.project_table') }}" target="_blank" class="small text-primary">
+                                    View full table <i class="fas fa-external-link-alt ml-1"></i>
+                                </a>
+                            </div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-folder fa-2x text-gray-300"></i>
