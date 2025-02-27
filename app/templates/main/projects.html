@@ -77,18 +77,18 @@
                                 <td>{{ project.countries_covered }}</td>
                                 <td>
                                     <div>
-                                        {% set has_project_report = project.documents | selectattr('document_type', 'equalto', 'final_project_report') | list | length > 0 %}
-                                        {% set has_external_evaluation = project.documents | selectattr('document_type', 'equalto', 'external_evaluation') | list | length > 0 %}
-                                        {% set has_original_proposal = project.documents | selectattr('document_type', 'equalto', 'original_proposal') | list | length > 0 %}
-                                        
-                                        {% if has_original_proposal %}
-                                            <span class="badge badge-success">Original Proposal</span>
-                                        {% endif %}
-                                        {% if has_project_report %}
-                                            <span class="badge badge-success">Project Report</span>
-                                        {% endif %}
-                                        {% if has_external_evaluation %}
-                                            <span class="badge badge-success">External Evaluation</span>
+                                        {% if project.documents %}
+                                            {% for doc in project.documents %}
+                                                {% if doc.document_type.value == 'original_proposal' %}
+                                                    <span class="badge badge-success">Original Proposal</span>
+                                                {% elif doc.document_type.value == 'final_project_report' %}
+                                                    <span class="badge badge-success">Project Report</span>
+                                                {% elif doc.document_type.value == 'external_evaluation' %}
+                                                    <span class="badge badge-success">External Evaluation</span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="badge badge-outline-info">No documents</span>
                                         {% endif %}
                                     </div>
                                 </td>
