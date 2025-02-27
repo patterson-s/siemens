@@ -10,7 +10,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
     
     # App configuration
-    APP_NAME = "SII AI Assessment Tool v 1.2.0"
+    APP_NAME = "SII AI Assessment Tool v 1.3"
     
     # Database configuration
     IS_PRODUCTION = os.environ.get('RENDER') is not None

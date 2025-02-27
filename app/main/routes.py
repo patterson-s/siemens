@@ -1,6 +1,6 @@
 from flask import render_template, redirect, url_for, request, flash, send_from_directory, jsonify, session, current_app
 from app.main import bp
-from app.models.models import Project, ProjectQuestion, Document, EvaluationRun, EvaluationResponse, EvaluationStatus, APILog, ChatSession, ChatMessage, DocumentType  # Import ChatSession and ChatMessage
+from app.models.models import Project, ProjectQuestion, Document, EvaluationRun, EvaluationResponse, EvaluationStatus, APILog, ChatSession, ChatMessage, DocumentType, Interview, InterviewQuestion  # Import InterviewQuestion
 from app import db  # Import the db instance
 import os
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
@@ -9,6 +9,17 @@ from threading import Thread
 import pdfplumber
 import time
 from datetime import datetime, timedelta  # Add timedelta to the import
+from werkzeug.utils import secure_filename
+from docx import Document as DocxDocument
+from io import BytesIO
+from flask_login import login_required, current_user
+from app.auth.decorators import admin_required
+from sqlalchemy import desc, func, text, distinct, case, and_
+from openai import OpenAI
+import tiktoken  # Import tiktoken for token counting
+from flask_wtf.csrf import generate_csrf
+from cryptography.fernet import Fernet  # Add this at the top with other imports
+import requests  # Import requests to make HTTP calls
 from langchain.agents import create_sql_agent, AgentExecutor
 from langchain.agents.agent_types import AgentType
 from langchain.sql_database import SQLDatabase
@@ -17,26 +28,22 @@ from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationChain
-from werkzeug.utils import secure_filename
-from docx import Document as DocxDocument
-from io import BytesIO
-from flask_login import login_required, current_user
-from app.auth.decorators import admin_required
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import SQLDatabaseToolkit
 from langchain.agents.format_scratchpad import format_to_openai_functions
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
-from sqlalchemy import desc, func, text, distinct, case, and_
-from openai import OpenAI
-import tiktoken  # Import tiktoken for token counting
-from flask_wtf.csrf import generate_csrf
-from cryptography.fernet import Fernet  # Add this at the top with other imports
+import logging
+import json  # Import the json module
+
+# Configure logging to output to the console
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Update the DOCUMENT_TYPES tuple to show in the desired order
 DOCUMENT_TYPES = [
-    ('original_proposal', 'Original Proposal'),
-    ('final_project_report', 'Project Report'),
-    ('external_evaluation', 'External Evaluation')
+    (DocumentType.original_proposal.value, 'Original Proposal'),
+    (DocumentType.final_project_report.value, 'Project Report'),
+    (DocumentType.external_evaluation.value, 'External Evaluation')
 ]
 
 @bp.route('/')
@@ -46,11 +53,10 @@ def index():
     # Get all active projects
     projects = Project.query.filter_by(active=True).all()
     
-    # Count projects with all required documents
+    # Count projects with any documents loaded
     projects_with_docs = sum(
         1 for p in projects 
-        if any(d.document_type == 'final_project_report' for d in p.documents) 
-        and any(d.document_type == 'external_evaluation' for d in p.documents)
+        if p.documents  # Check if there are any documents associated with the project
     )
     
     # Get total number of questions
@@ -788,7 +794,7 @@ def ai_agent():
         db.session.add(chat_session)
         db.session.commit()
         session['chat_session_id'] = chat_session.id
-    
+
     if request.method == 'POST':
         user_query = request.form.get('query')
         
@@ -799,147 +805,127 @@ def ai_agent():
             content=user_query
         )
         db.session.add(user_message)
-        
+
         # Create SQLDatabase instance
         db_uri = current_app.config['SQLALCHEMY_DATABASE_URI']
         sql_db = SQLDatabase.from_uri(db_uri)
-        
+
         # Initialize the LLM with higher temperature
         llm = ChatAnthropic(
-            model="claude-3-sonnet-20240229",
+            model="claude-3-5-sonnet-20241022",
             anthropic_api_key=Config.CLAUDE_API_KEY,
             temperature=0.3,  
             max_tokens=4000
         )
+
+        # Create the toolkit with both db and llm
+        toolkit = SQLDatabaseToolkit(db=sql_db, llm=llm)
+
+        # Create the agent with the toolkit
+        agent = create_sql_agent(llm, toolkit, agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION)
+
+        # Define the schema description
+        schema_description = """
+        The pirmary objects of interest are projects, question responses, and documents.
         
+        The database contains the following tables:
+
+        1. **univ_projects** - Projects
+            - **id**: Integer, primary key - Unique identifier for each project.
+            - **name_of_round**: Numeric(3, 1), nullable=False - The round name, allowing decimal values (e.g., 1.0, 2.5).
+            - **name**: String(255), nullable=False - The name of the project.
+            - **file_number_db**: Float - The file number associated with the project.
+            - **scope**: String(100) - The scope of the project.
+            - **region**: String(100) - The geographical region of the project.
+            - **countries_covered**: String(255) - The countries covered by the project.
+            - **integrity_partner_name**: String(255) - The name of the integrity partner involved in the project.
+            - **partner_type**: String(50) - The type of partner involved in the project.
+            - **project_partners**: Text - Details about the project partners.
+            - **wb_or_eib**: String(50) - Indicates whether the project is associated with the World Bank (WB) or the European Investment Bank (EIB).
+            - **key_project_objectives**: Text - The key objectives of the project.
+            - **sectoral_scope**: String(100) - The sectoral scope of the project.
+            - **specific_sector**: String(100) - The specific sector the project targets.
+            - **funding_amount_usd**: Numeric(10, 2) - The funding amount in USD millions, allowing for two decimal places.
+            - **duration**: String(50) - The duration of the project.
+            - **start_year**: Integer - The year the project starts.
+            - **end_year**: Integer - The year the project ends.
+            - **wb_income_classification**: String(50) - The income classification according to the World Bank.
+            - **corruption_quintile**: String(25) - The corruption quintile classification.
+            - **cci**: Numeric(4, 2) - The corruption control index, allowing for two decimal places.
+            - **government_type_eiu**: String(100) - The type of government according to the Economist Intelligence Unit (EIU).
+            - **government_score_eiu**: Numeric(4, 2) - The government score according to the EIU, allowing for two decimal places.
+            - **notes**: Text - Additional information about the project.
+
+
+        2. **univ_documents** - Documents
+            - **id**: Integer, primary key - Unique identifier for each document.
+            - **project_id**: Integer, foreign key referencing univ_projects(id), nullable=False - The ID of the project associated with this document.
+            - **filename**: String(255), nullable=False - The name of the document file.
+            - **file_type**: String(100) - The type of the file (e.g., PDF, DOCX).
+            - **document_type**: Enum(DocumentType), nullable=False, default=DocumentType.external_evaluation - The type of document, with a default value of 'external_evaluation'.
+            - **file_size**: Integer - The word count of the content from the document (stored in content column).
+            -  **content_preview**: Text - A preview of the document's content.
+            - **content**: Text - The full content of the document.
+            - **created_at**: DateTime, default=datetime.utcnow - The timestamp when the document was created.
+
+
+        3. **univ_evaluation_responses** - Question Responses
+            - **id**: Integer, primary key - Unique identifier for each response.
+            - **question_id**: Integer, foreign key referencing univ_project_questions(id) - The ID of the question associated with this response.
+            - **project_id**: Integer, foreign key referencing univ_projects(id) - The ID of the project associated with this response.
+            - **evaluation_run_id**: Integer, foreign key referencing univ_evaluation_runs(id) - The ID of the evaluation run associated with this response.
+            - **response_text**: Text, nullable=False - The text of the question response.
+            - **reviewed**: Boolean, default=False - Indicates whether the response has been reviewed.
+            - **created_at**: DateTime, default=datetime.utcnow - The timestamp when the response was created.
+
+        """
+
         try:
-            # Create a SQL generation prompt
-            sql_prompt = f"""Based on this question, generate a SQL query to get the answer from our database:
-            Question: {user_query}
+            # Combine schema description with user query
+            full_query = f"{schema_description}\nUser Query: {user_query}"
+            response = agent.invoke(full_query, handle_parsing_errors=True)  # Pass the full query
+            # Ensure response is a string
+            if isinstance(response, dict):
+                response = json.dumps(response)  # Convert dict to JSON string if necessary
             
-            Database Structure:
-            1. univ_projects (p):
-               this table contains the project details
-               - id (primary key)
-               - name, name_of_round, file_number_db, scope, region, countries_covered
-               - integrity_partner_name
-               - funding_amount_usd (in millions)
-               - start_year, end_year
-            
-            2. univ_evaluation_runs (er):
-                this table contains the details of assessment runs for each project
-               - id (primary key)
-               - project_id (foreign key to univ_projects.id)
-               - status, created_at, model_used
-            
-            3. univ_evaluation_responses (r):
-                this table contains the responses to each question for each assessment run
-               - id (primary key)
-               - evaluation_run_id (foreign key to univ_evaluation_runs.id)
-               - question_id (foreign key to univ_project_questions.id)
-               - response_text (contains the actual response)
-            
-            4. univ_project_questions (q):
-                this table contains the questions and their details
-                look at the question and name fields to determine which question answers the user query, then match it with the assessment run for the project(s) idnetified in the user query
-               - id (primary key)
-               - question, name, prompt, order
-               - here are the questions ids and topics:
-                id = 1   2.1 b Intended outputs achieved
-                id = 2   2.1 a Outputs by Category
-                id = 3   2.2 Attributable Outcomes
-                id = 4   2.3 Impact Evidence Analysis
-                id = 5   2.4 Unplanned Results
-                id = 6   2.5 Sustainable Results
-                id = 7   2.6 Internal Factors
-                id = 8   2.7 External Factors
-                id = 9   Project Overview
-                id = 11  Contributions and Ratings
-            
-            
-            Common joins:
-            - Join projects to evaluation runs: p.id = er.project_id
-            - Join evaluation runs to responses: er.id = r.evaluation_run_id
-            - Join responses to questions: r.question_id = q.id
-            
-            Return only the SQL query, nothing else."""
-            
-            # Get SQL query
-            sql_response = llm.invoke(sql_prompt)
-            sql_query = sql_response.content.strip()
-            
-            # Execute query
-            result = sql_db.run(sql_query)
-            
-            # Generate natural language response
-            analysis_prompt = f"""Original question: {user_query}
+            # Parse the JSON response
+            response_data = json.loads(response)  # Convert JSON string to dictionary
+            output = response_data.get("output", "No output available.")  # Extract the output
+        except Exception as e:  # Catch all exceptions
+            logger.error("Error processing user query: %s", e)  # Log the error
+            logger.debug("User query: %s", user_query)  # Log the user query for debugging
+            output = "I'm sorry, but I couldn't process your request. Please try again or rephrase your question."
 
-            Query used:
-            {sql_query}
+        # Create assistant message
+        assistant_message = ChatMessage(
+            session_id=chat_session.id,
+            role='assistant',
+            content=output  # Store the output as a string
+        )
+        db.session.add(assistant_message)
+        db.session.commit()
 
-            Here is the data from our database that answers the question:
-            Result: {result}
-            
-            You are an expert analyst helping to understand project performance. Use the data to provide 
-            insightful analysis that directly answers the original question. Focus on extracting meaningful 
-            insights from the data rather than just summarizing it. If patterns or trends emerge across 
-            multiple projects, highlight those.
+        # Get all messages for this session
+        messages = ChatMessage.query.filter_by(session_id=chat_session.id)\
+            .order_by(ChatMessage.created_at.desc())\
+            .all()
 
-            Format numbers nicely and use proper sentence structure.
-            If the question is not answered in the data, say so.
-            If the question is not relevant to the data, say so.
-            If the question is not clear, say so.
-            If the question is not answerable, say so.
-            
-            Present your response in two parts:
-            1. Your analytical response to the question
-            2. The SQL query that was used (for verification)
-            """
-            
-            # Get final response
-            final_response = llm.invoke(analysis_prompt)
-            response = final_response.content
-            
-            # Create assistant message
-            assistant_message = ChatMessage(
-                session_id=chat_session.id,
-                role='assistant',
-                content=response
-            )
-            db.session.add(assistant_message)
-            
-            # Update session title if it's the first message
-            if not chat_session.title:
-                chat_session.title = user_query[:50] + "..."
-            
-            db.session.commit()
-            
-            # Get all messages for this session
-            messages = ChatMessage.query.filter_by(session_id=chat_session.id)\
-                .order_by(ChatMessage.created_at.desc())\
-                .all()
-            
-            return render_template('main/ai_agent.html',
-                                response=response,
-                                chat_history=messages,
-                                current_session=chat_session,
-                                all_sessions=ChatSession.query.order_by(ChatSession.created_at.desc()).all())
-                                
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Error processing query: {str(e)}', 'error')
-            return redirect(url_for('main.ai_agent'))
-    
-    # GET request handling remains the same
+        return render_template('main/ai_agent.html',
+                               response=output,  # Pass the output to the template
+                               chat_history=messages,
+                               current_session=chat_session,
+                               all_sessions=ChatSession.query.order_by(ChatSession.created_at.desc()).all())
+
+    # GET request handling
     messages = ChatMessage.query.filter_by(session_id=chat_session.id)\
         .order_by(ChatMessage.created_at.desc())\
         .all()
-    
+
     return render_template('main/ai_agent.html',
-                         response=None,
-                         chat_history=messages,
-                         current_session=chat_session,
-                         all_sessions=ChatSession.query.order_by(ChatSession.created_at.desc()).all())
+                           response=None,
+                           chat_history=messages,
+                           current_session=chat_session,
+                           all_sessions=ChatSession.query.order_by(ChatSession.created_at.desc()).all())
 
 @bp.route('/ai-agent/new-session')
 def new_chat_session():
@@ -1204,3 +1190,135 @@ def preview_document(document_id):
 def project_table():
     projects = Project.query.all()
     return render_template('main/project_table.html', projects=projects) 
+
+@bp.route('/interviews')
+@login_required
+def interviews():
+    # Use _content in the query to match the actual column name
+    interviews = db.session.query(Interview).order_by(Interview.uploaded_at.desc()).all()
+    return render_template('main/interviews.html', interviews=interviews) 
+
+@bp.route('/upload_interview', methods=['GET', 'POST'])
+@login_required
+def upload_interview():
+    if request.method == 'POST':
+        # Check if a file was uploaded
+        if 'file' not in request.files:
+            flash('No file selected', 'danger')
+            return redirect(request.url)
+            
+        file = request.files['file']
+        if file.filename == '':
+            flash('No file selected', 'danger')
+            return redirect(request.url)
+
+        if file:
+            # Determine the file type and extract content accordingly
+            content = ""
+            if file.filename.endswith('.docx'):
+                # Read content from Word document
+                doc = DocxDocument(file)
+                content = "\n".join([para.text for para in doc.paragraphs])
+            else:
+                # Read content from text file
+                content = file.read().decode('utf-8')
+
+            # Calculate word count
+            word_count = len(content.split())
+
+            # Create new interview
+            interview = Interview(
+                name=request.form.get('name', file.filename),
+                filename=file.filename,
+                content=content,
+                word_count=word_count,  # Save the word count
+                uploaded_by=current_user
+            )
+            
+            db.session.add(interview)
+            db.session.commit()
+            
+            flash('Interview uploaded successfully', 'success')
+            return redirect(url_for('main.interviews'))
+
+    return render_template('main/upload_interview.html') 
+
+@bp.route('/interview/<int:interview_id>')
+@login_required
+def view_interview(interview_id):
+    interview = Interview.query.get_or_404(interview_id)
+    return render_template('main/view_interview.html', interview=interview)
+
+@bp.route('/interview/<int:interview_id>/delete', methods=['POST'])
+@login_required
+def delete_interview(interview_id):
+    interview = Interview.query.get_or_404(interview_id)
+    db.session.delete(interview)
+    db.session.commit()
+    flash('Interview deleted successfully', 'success')
+    return redirect(url_for('main.interviews')) 
+
+@bp.route('/interview_questions')
+@login_required
+def interview_questions():
+    questions = InterviewQuestion.query.all()
+    return render_template('main/interview_questions.html', questions=questions)
+
+@bp.route('/edit_interview_question/<int:question_id>', methods=['GET', 'POST'])
+@login_required
+def edit_interview_question(question_id):
+    question = InterviewQuestion.query.get_or_404(question_id)
+    
+    if request.method == 'POST':
+        question.title = request.form['title']
+        question.text = request.form['text']
+        db.session.commit()
+        flash('Interview question updated successfully', 'success')
+        return redirect(url_for('main.interview_questions'))
+    
+    return render_template('main/edit_interview_question.html', question=question)
+
+@bp.route('/submit_interview_question/<int:question_id>', methods=['GET', 'POST'])
+@login_required
+def submit_interview_question(question_id=None):
+    question_text = ""
+    
+    if question_id is not None:
+        # Load the interview question text by ID
+        question = InterviewQuestion.query.get_or_404(question_id)
+        question_text = question.text  # Load the text of the question
+
+    if request.method == 'POST':
+        question_text = request.form['question_text']
+        system_prompt = request.form['system_prompt']  # Get the system prompt from the form
+        
+        # Fetch all interview texts
+        interviews = Interview.query.all()
+        interview_texts = [interview.content for interview in interviews if interview.content]  # Collect texts
+        
+        # Combine all interview texts into a single string
+        combined_interview_texts = "\n".join(interview_texts)
+
+        # Send the question, system prompt, and interview texts to the local LLM
+        response = requests.post(
+            'http://127.0.0.1:1234/v1/chat/completions',
+            json={
+                "messages": [
+                    {"role": "system", "content": system_prompt},  # System prompt
+                    {"role": "user", "content": question_text + "\n\n" + combined_interview_texts}  # User question with context
+                ],
+                "model": "llama3"  # This is just a placeholder - LM Studio generally ignores this field
+            }
+        )
+        
+        if response.status_code == 200:
+            llm_response = response.json()
+            llm_content = llm_response['choices'][0]['message']['content']
+            llm_content = llm_content.replace('\n', '<br>')  # Convert line returns to <br> for HTML display
+            flash('Question submitted successfully!', 'success')
+            return render_template('main/submit_interview_question.html', llm_response=llm_content, question_text=question_text)
+        else:
+            flash('Error submitting question to LLM: ' + response.text, 'danger')
+    
+    return render_template('main/submit_interview_question.html', question_text=question_text) 
+

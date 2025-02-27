@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Submit Interview Question</h1>
+    
+    <form method="POST" onsubmit="changeButtonText()">
+        <div class="form-group">
+            <label for="system_prompt">System Prompt</label>
+            <textarea class="form-control" id="system_prompt" name="system_prompt" rows="2" placeholder="Enter system prompt here...">Analyze all of the interviews to answer the question and provide examples from selected interviews to illustrate each point. Also indicate how many out of the total ten interviewees commented on the same issue or sub-issue.</textarea>
+        </div>
+        <div class="form-group">
+            <label for="question_text">Question Text</label>
+            <textarea class="form-control" id="question_text" name="question_text" rows="4" required>{{ question_text }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" id="submit-button">Submit Question</button>
+    </form>
+
+    {% if llm_response %}
+        <h2 class="mt-4">LLM Response</h2>
+        <div class="llm-response">{{ llm_response | safe }}</div>  <!-- Use safe to render HTML -->
+    {% endif %}
+</div>
+
+<script>
+function changeButtonText() {
+    document.getElementById('submit-button').innerText = 'Generating Response...';
+    document.getElementById('submit-button').disabled = true; // Optionally disable the button
+}
+</script>
+{% endblock %} 

@@ -1,14 +1,15 @@
-from app import db  # Import the db instance
+import enum
 from datetime import datetime, timedelta  # Ensure datetime is imported for ProjectQuestion model
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash  # Add this for password hashing
-from enum import Enum
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from cryptography.fernet import Fernet, InvalidToken
 from flask import current_app
 import logging
 from config import Config
 from base64 import b64encode
+from sqlalchemy_utils import TSVectorType
+from app import db
 
 class User(UserMixin, db.Model):
     __tablename__ = 'univ_users'
@@ -45,10 +46,11 @@ class User(UserMixin, db.Model):
         return f'<User {self.username}>'
 
 
-class DocumentType(str, Enum):
-    EXTERNAL_EVALUATION = "external_evaluation"
-    FINAL_PROJECT_REPORT = "final_project_report"
-    
+class DocumentType(enum.Enum):
+    external_evaluation = 'external_evaluation'
+    final_project_report = 'final_project_report'
+    original_proposal = 'original_proposal'
+
     @classmethod
     def choices(cls):
         return [(choice.value, choice.value.replace('_', ' ').title()) 
@@ -56,40 +58,52 @@ class DocumentType(str, Enum):
 
 class Document(db.Model):
     __tablename__ = 'univ_documents'
-    
+    __table_args__ = (
+        # Add TimescaleDB hypertable configuration
+        {'postgresql_partition_by': 'created_at'},
+    )
+
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, db.ForeignKey('univ_projects.id'), nullable=False)
     filename = db.Column(db.String(255), nullable=False)
-    file_type = db.Column(db.String(50), nullable=False)
-    document_type = db.Column(db.String(50), nullable=False, default=DocumentType.EXTERNAL_EVALUATION.value)
-    file_size = db.Column(db.Integer, nullable=False)
-    _content = db.Column('content', db.Text)
-    content_preview = db.Column(db.String(1000), nullable=True)
+    file_type = db.Column(db.String(100))
+    document_type = db.Column(db.Enum(DocumentType), nullable=False, default=DocumentType.external_evaluation)
+    file_size = db.Column(db.Integer)  # word count
+    content_preview = db.Column(db.Text)
+    _content = db.Column('content', db.Text)  # Note: maps to 'content' column in database
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Change TSVectorType to TSVECTOR
+    search_vector = db.Column(TSVECTOR)
 
-    def get_content(self):
-        """Decrypt and return content"""
-        if not self._content:
-            return None
-        try:
-            f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
-            return f.decrypt(self._content.encode()).decode()
-        except Exception as e:
-            logging.error(f"Decryption error: {str(e)}")
-            return None
+    # Single relationship definition
+    project = db.relationship('Project', back_populates='documents')
+    evaluation_runs = db.relationship('EvaluationRun', 
+                                    secondary='univ_evaluation_documents',
+                                    back_populates='documents')
 
-    def set_content(self, value):
-        """Encrypt and store content"""
-        if not value:
+    def set_content(self, content):
+        """Encrypt content before storing"""
+        if not content:
             self._content = None
             return
-        try:
-            f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
-            self._content = f.encrypt(value.encode()).decode()
-            return True
-        except Exception as e:
-            logging.error(f"Encryption error: {str(e)}")
-            raise ValueError(f"Could not encrypt document content: {str(e)}")
+            
+        f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
+        self._content = f.encrypt(content.encode()).decode()
+        
+        # Update content preview
+        self.content_preview = content[:1000] if content else None
+        
+        # Update search vector
+        self.search_vector = db.func.to_tsvector('english', content)
+
+    def get_content(self):
+        """Decrypt stored content"""
+        if not self._content:
+            return None
+            
+        f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
+        return f.decrypt(self._content.encode()).decode()
 
 class ProjectQuestion(db.Model):
     __tablename__ = 'univ_project_questions'
@@ -158,15 +172,20 @@ class Project(db.Model):
     num_event_attendees = db.Column(db.Integer)
     num_publications = db.Column(db.Integer)
     
-    # Relationships
-    documents = db.relationship('Document', backref='project', lazy=True)
+    # Update relationship definition to match Document model
+    documents = db.relationship('Document', back_populates='project', lazy=True)
     evaluation_runs = db.relationship('EvaluationRun', backref='project', lazy=True)
 
-class EvaluationStatus(Enum):
+class EvaluationStatus(enum.Enum):
     PENDING = 'pending'
     IN_PROGRESS = 'in_progress'
     COMPLETED = 'completed'
     FAILED = 'failed'
+
+    @classmethod
+    def choices(cls):
+        return [(choice.value, choice.value.replace('_', ' ').title()) 
+                for choice in cls]
 
 class EvaluationRun(db.Model):
     __tablename__ = 'univ_evaluation_runs'
@@ -293,3 +312,59 @@ class LoginLog(db.Model):
     attempted_username = db.Column(db.String(64), nullable=True)
     
     user = db.relationship('User', backref='login_logs')
+
+class Interview(db.Model):
+    __tablename__ = 'univ_interviews'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    filename = db.Column(db.String(200), nullable=False)
+    _content = db.Column('_content', db.Text)
+    word_count = db.Column(db.Integer, nullable=False)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    uploaded_by_id = db.Column(db.Integer, db.ForeignKey('univ_users.id'), nullable=False)
+    uploaded_by = db.relationship('User', backref='interviews')
+
+    @property
+    def content(self):
+        """Get decrypted content"""
+        if not self._content:
+            return None
+        try:
+            f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
+            return f.decrypt(self._content.encode()).decode('utf-8')
+        except Exception as e:
+            current_app.logger.error(f"Decryption error: {str(e)}")
+            return None
+
+    @content.setter 
+    def content(self, value):
+        """Set encrypted content"""
+        if not value:
+            self._content = None
+            return
+        try:
+            f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
+            self._content = f.encrypt(value.encode()).decode('utf-8')
+        except Exception as e:
+            current_app.logger.error(f"Encryption error: {str(e)}")
+            raise ValueError(f"Could not encrypt content: {str(e)}")
+
+    def __repr__(self):
+        return f'<Interview {self.name}>'
+
+class InterviewQuestion(db.Model):
+    __tablename__ = 'univ_interview_questions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    text = db.Column(db.Text, nullable=False)
+
+    def __repr__(self):
+        return f'<InterviewQuestion {self.title}>'
+
+DOCUMENT_TYPES = [
+    ('original_proposal', 'Original Proposal'),
+    ('final_project_report', 'Project Report'),
+    ('external_evaluation', 'External Evaluation')
+]

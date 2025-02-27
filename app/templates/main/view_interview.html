@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{{ interview.name }}</h1>
+        <div>
+            <a href="{{ url_for('main.interviews') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="row">
+                <div class="col-md-4">
+                    <strong>Uploaded by:</strong> {{ interview.uploaded_by.username }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Upload date:</strong> {{ interview.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Word count:</strong> {{ interview.word_count }}
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="interview-content" style="white-space: pre-wrap;">
+                {{ interview.content }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
