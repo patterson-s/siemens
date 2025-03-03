@@ -34,6 +34,7 @@ from langchain.agents.format_scratchpad import format_to_openai_functions
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 import logging
 import json  # Import the json module
+import re  # Import re for regular expressions
 
 # Configure logging to output to the console
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -834,7 +835,7 @@ def ai_agent():
 
         # Define the schema description
         schema_description = """
-        The pirmary objects of interest are projects, question responses, and documents.
+        The primary objects of interest are projects, question responses, and documents.
         
         The database contains the following tables:
 
@@ -882,36 +883,109 @@ def ai_agent():
             - **question_id**: Integer, foreign key referencing univ_project_questions(id) - The ID of the question associated with this response.
             - **project_id**: Integer, foreign key referencing univ_projects(id) - The ID of the project associated with this response.
             - **evaluation_run_id**: Integer, foreign key referencing univ_evaluation_runs(id) - The ID of the evaluation run associated with this response.
-            - **response_text**: Text, nullable=False - The text of the question response.
+            - **response_text**: Text, nullable=False - The text of the question response. **This field is encrypted. To access its content, you must use the decryption function.**
             - **reviewed**: Boolean, default=False - Indicates whether the response has been reviewed.
             - **created_at**: DateTime, default=datetime.utcnow - The timestamp when the response was created.
 
-            ** When retrieving responses, ensure you only retrieve only the most recent response that haa been generated for each projet and question combination.
+            **When retrieving responses, ensure you only retrieve the most recent response that has been generated for each project and question combination.**
 
         4. **univ_project_questions** - Questions   
             - **id**: Integer, primary key - Unique identifier for each question.
             - **question**: Text, nullable=False - The text of the question.
-            - **name**: String(50), nullable=False - The short ttitle of the question.
+            - **name**: String(50), nullable=False - The short title of the question.
             - **prompt**: Text, nullable=False - The prompt used to generate the response.
             - **order**: Integer, nullable=False - The order of the question.
             - **created_at**: DateTime, default=datetime.utcnow - The timestamp when the question was created.
 
+        **Important Note**: The 'response_text' field in the 'univ_evaluation_responses' table is encrypted. You cannot directly query or filter on this field. Instead, I will provide you with decrypted responses for your analysis.
         """
 
         try:
-            # Combine schema description with user query
-            full_query = f"{schema_description}\nUser Query: {user_query}"
-            response = agent.invoke(full_query, handle_parsing_errors=True)  # Pass the full query
-            # Ensure response is a string
-            if isinstance(response, dict):
-                response = json.dumps(response)  # Convert dict to JSON string if necessary
+            # Extract project information from the user query
+            project_info = None
+            project_id = None
             
-            # Parse the JSON response
-            response_data = json.loads(response)  # Convert JSON string to dictionary
-            output = response_data.get("output", "No output available.")  # Extract the output
+            # Check if the query mentions a specific project
+            if "project" in user_query.lower():
+                # Try to extract project name or ID
+                project_match = re.search(r'project\s+(?:named|called|titled)?\s*["\']?([^"\']+)["\']?', user_query.lower())
+                if project_match:
+                    project_name = project_match.group(1).strip()
+                    project = Project.query.filter(Project.name.ilike(f"%{project_name}%")).first()
+                    if project:
+                        project_id = project.id
+                        project_info = f"Project ID: {project.id}, Name: {project.name}"
+            
+            # Retrieve and decrypt evaluation responses
+            decrypted_responses = []
+            
+            if project_id:
+                # If a specific project is mentioned, retrieve responses for that project
+                evaluation_responses = EvaluationResponse.query.filter_by(project_id=project_id).all()
+            else:
+                # Otherwise, retrieve a limited number of responses
+                evaluation_responses = EvaluationResponse.query.limit(50).all()
+            
+            # Decrypt the responses
+            for response in evaluation_responses:
+                decrypted_text = response.get_response_text()
+                if decrypted_text and not decrypted_text.startswith("Error:"):
+                    # Get the question text
+                    question = ProjectQuestion.query.get(response.question_id)
+                    question_text = question.question if question else "Unknown Question"
+                    
+                    # Get the project name
+                    project = Project.query.get(response.project_id)
+                    project_name = project.name if project else "Unknown Project"
+                    
+                    decrypted_responses.append({
+                        "response_id": response.id,
+                        "project_id": response.project_id,
+                        "project_name": project_name,
+                        "question_id": response.question_id,
+                        "question_text": question_text,
+                        "decrypted_content": decrypted_text
+                    })
+            
+            # Format the decrypted responses for the AI agent
+            formatted_responses = ""
+            for resp in decrypted_responses:
+                formatted_responses += f"\n--- Response ID: {resp['response_id']} ---\n"
+                formatted_responses += f"Project: {resp['project_name']} (ID: {resp['project_id']})\n"
+                formatted_responses += f"Question: {resp['question_text']} (ID: {resp['question_id']})\n"
+                formatted_responses += f"Content: {resp['decrypted_content']}\n"
+            
+            # Combine schema description with user query and decrypted responses
+            full_query = f"{schema_description}\n\nDecrypted Evaluation Responses:\n{formatted_responses}\n\nUser Query: {user_query}"
+            
+            # Invoke the agent with the full query
+            try:
+                # First try with handle_parsing_errors=True
+                response = agent.invoke(full_query, handle_parsing_errors=True)
+                
+                # Ensure response is a string
+                if isinstance(response, dict):
+                    output = response.get("output", "No output available.")
+                else:
+                    output = str(response)
+                    
+            except Exception as parsing_error:
+                # If there's still an error, extract the raw output from the error message
+                error_str = str(parsing_error)
+                if "Could not parse LLM output: `" in error_str:
+                    # Extract the raw output from the error message
+                    raw_output = error_str.split("Could not parse LLM output: `")[1].rsplit("`", 1)[0]
+                    output = raw_output
+                else:
+                    # If we can't extract the output, use the error message
+                    output = f"Error processing query: {error_str}"
+                
+                logger.warning(f"Parsing error handled: {error_str}")
+                
         except Exception as e:  # Catch all exceptions
             logger.error("Error processing user query: %s", e)  # Log the error
             logger.debug("User query: %s", user_query)  # Log the user query for debugging
+            db.session.rollback()  # Rollback the session to clear the transaction state
             output = "I'm sorry, but I couldn't process your request. Please try again or rephrase your question."
 
         # Create assistant message
