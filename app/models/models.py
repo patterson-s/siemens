@@ -58,52 +58,45 @@ class DocumentType(enum.Enum):
 
 class Document(db.Model):
     __tablename__ = 'univ_documents'
-    __table_args__ = (
-        # Add TimescaleDB hypertable configuration
-        {'postgresql_partition_by': 'created_at'},
-    )
-
+    
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, db.ForeignKey('univ_projects.id'), nullable=False)
     filename = db.Column(db.String(255), nullable=False)
     file_type = db.Column(db.String(100))
     document_type = db.Column(db.Enum(DocumentType), nullable=False, default=DocumentType.external_evaluation)
-    file_size = db.Column(db.Integer)  # word count
+    file_size = db.Column(db.Integer)  # Word count
     content_preview = db.Column(db.Text)
-    _content = db.Column('content', db.Text)  # Note: maps to 'content' column in database
+    _content = db.Column('content', db.Text)  # Renamed to match EvaluationResponse pattern
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Change TSVectorType to TSVECTOR
-    search_vector = db.Column(TSVECTOR)
-
-    # Single relationship definition
-    project = db.relationship('Project', back_populates='documents')
-    evaluation_runs = db.relationship('EvaluationRun', 
-                                    secondary='univ_evaluation_documents',
-                                    back_populates='documents')
-
+    # Remove the search_vector field
+    # search_vector = db.Column(TSVectorType('content'))
+    
+    # Relationships
+    project = db.relationship('Project')
+    
+    def get_content(self):
+        """Decrypt and return content"""
+        if not self._content:
+            return None
+        try:
+            f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
+            return f.decrypt(self._content.encode()).decode()
+        except Exception as e:
+            current_app.logger.error(f"Decryption error: {str(e)}")
+            return "Error: Could not decrypt document content"
+    
     def set_content(self, content):
-        """Encrypt content before storing"""
+        """Encrypt and set content"""
         if not content:
             self._content = None
             return
-            
-        f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
-        self._content = f.encrypt(content.encode()).decode()
-        
-        # Update content preview
-        self.content_preview = content[:1000] if content else None
-        
-        # Update search vector
-        self.search_vector = db.func.to_tsvector('english', content)
-
-    def get_content(self):
-        """Decrypt stored content"""
-        if not self._content:
-            return None
-            
-        f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
-        return f.decrypt(self._content.encode()).decode()
+        try:
+            f = Fernet(current_app.config['ENCRYPTION_KEY'].encode())
+            self._content = f.encrypt(content.encode()).decode()
+        except Exception as e:
+            current_app.logger.error(f"Encryption error: {str(e)}")
+            raise ValueError("Could not encrypt document content")
 
 class ProjectQuestion(db.Model):
     __tablename__ = 'univ_project_questions'
