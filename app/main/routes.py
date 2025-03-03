@@ -50,47 +50,41 @@ DOCUMENT_TYPES = [
 @bp.route('/index')
 @login_required
 def index():
-    # Get all active projects
-    projects = Project.query.filter_by(active=True).all()
+    # Get counts for dashboard
+    total_projects = Project.query.count()
+    total_documents = Document.query.count()
     
-    # Count projects with any documents loaded
-    projects_with_docs = sum(
-        1 for p in projects 
-        if p.documents  # Check if there are any documents associated with the project
-    )
+    # Get all projects for calculations
+    all_projects = Project.query.all()
     
-    # Get total number of questions
-    total_questions = ProjectQuestion.query.count()
+    # Count projects with at least one response
+    projects_with_responses = db.session.query(Project.id).join(
+        EvaluationResponse, Project.id == EvaluationResponse.project_id
+    ).distinct().count()
     
-    # Count projects with all questions answered
-    projects_with_responses = sum(
-        1 for p in projects
-        if any(len(run.responses) == total_questions for run in p.evaluation_runs)
-    )
+    # Count projects with at least one document
+    projects_with_docs = db.session.query(Project.id).join(
+        Document, Project.id == Document.project_id
+    ).distinct().count()
     
-    # Count projects with the most recent responses reviewed
-    projects_reviewed = 0
-    for p in projects:
-        for run in p.evaluation_runs:
-            # Create a dictionary to track the most recent response for each question
-            latest_responses = {}
-            for response in run.responses:
-                question_id = response.question.id
-                # Update the latest response if it's the most recent one
-                if question_id not in latest_responses or response.created_at > latest_responses[question_id].created_at:
-                    latest_responses[question_id] = response
-            
-            # Check if all latest responses are reviewed
-            if all(latest_response.reviewed for latest_response in latest_responses.values()):
-                projects_reviewed += 1
-                break  # No need to check further runs for this project
-
+    # Count projects with ALL responses GENERATED
+    projects_with_all_responses = get_projects_with_all_responses()
+    
+    # Count projects with ALL responses REVIEWED
+    projects_with_all_reviewed = get_projects_with_all_reviewed()
+    
+    # Get recent projects
+    recent_projects = Project.query.order_by(Project.id.desc()).limit(5).all()
+    
     return render_template('main/index.html',
-                         title=Config.APP_NAME,
-                         projects=projects,
-                         projects_with_docs=projects_with_docs,
-                         projects_with_responses=projects_with_responses,
-                         projects_reviewed=projects_reviewed)
+                          total_projects=total_projects,
+                          total_documents=total_documents,
+                          projects_with_responses=projects_with_responses,
+                          projects_with_all_responses=projects_with_all_responses,
+                          projects_with_all_reviewed=projects_with_all_reviewed,
+                          projects_with_docs=projects_with_docs,
+                          projects=all_projects,
+                          recent_projects=recent_projects)
 
 @bp.route('/projects')
 @login_required
@@ -519,7 +513,7 @@ def check_assessment_progress(evaluation_id):
     
     return jsonify(progress)
 
-def run_evaluation(project_id, evaluation_id, selected_question_ids, temperature, selected_documents):
+def run_evaluation(project_id, evaluation_id, selected_questions, temperature, selected_docs):
     """Run the evaluation process in the background"""
     from app import create_app
     app = create_app()
@@ -530,19 +524,26 @@ def run_evaluation(project_id, evaluation_id, selected_question_ids, temperature
             project = Project.query.get(project_id)
             
             # Get selected documents with their types
-            documents = Document.query.filter(Document.id.in_(selected_documents)).all()
+            documents = Document.query.filter(Document.id.in_(selected_docs)).all()
             
             # Build context from documents with caching instruction
             document_contexts = []
             for doc in documents:
-                doc_type = doc.document_type.replace('_', ' ').title()
-                # Use get_content() instead of accessing content directly
-                content = doc.get_content()
-                if content:  # Only add if content was successfully decrypted
-                    doc_context = f"\n=== {doc_type}: {doc.filename} ===\n{content}\n"
-                    document_contexts.append(doc_context)
+                # Fix: Convert the Enum to string before using replace()
+                if hasattr(doc.document_type, 'value'):
+                    # If it's an Enum with a value attribute
+                    doc_type = str(doc.document_type.value)
+                elif hasattr(doc.document_type, 'name'):
+                    # If it's an Enum with a name attribute
+                    doc_type = str(doc.document_type.name)
                 else:
-                    print(f"Warning: Could not decrypt content for document {doc.id}: {doc.filename}")
+                    # Fallback to string conversion
+                    doc_type = str(doc.document_type)
+                
+                formatted_type = doc_type.replace('_', ' ').title()
+                
+                doc_context = f"\n=== {formatted_type}: {doc.filename} ===\n{doc.get_content()}\n"
+                document_contexts.append(doc_context)
             
             if not document_contexts:
                 raise ValueError("No readable document content found")
@@ -576,7 +577,8 @@ def run_evaluation(project_id, evaluation_id, selected_question_ids, temperature
             ]
             
             # Process each question
-            for question in ProjectQuestion.query.filter(ProjectQuestion.id.in_(selected_question_ids)).order_by(ProjectQuestion.order):
+            completed_questions = 0
+            for question in ProjectQuestion.query.filter(ProjectQuestion.id.in_(selected_questions)).order_by(ProjectQuestion.order):
                 try:
                     # Create API log entry
                     api_log = APILog(
@@ -645,6 +647,12 @@ Please provide your analysis based on the available documents."""
                         time.sleep(5)
                     else:
                         time.sleep(2)
+                    
+                    # Update progress
+                    completed_questions += 1
+                    evaluation.completed_questions = completed_questions
+                    evaluation.progress = int((completed_questions / len(selected_questions)) * 100)
+                    db.session.commit()
                     
                 except Exception as e:
                     error_msg = str(e)
@@ -877,6 +885,16 @@ def ai_agent():
             - **response_text**: Text, nullable=False - The text of the question response.
             - **reviewed**: Boolean, default=False - Indicates whether the response has been reviewed.
             - **created_at**: DateTime, default=datetime.utcnow - The timestamp when the response was created.
+
+            ** When retrieving responses, ensure you only retrieve only the most recent response that haa been generated for each projet and question combination.
+
+        4. **univ_project_questions** - Questions   
+            - **id**: Integer, primary key - Unique identifier for each question.
+            - **question**: Text, nullable=False - The text of the question.
+            - **name**: String(50), nullable=False - The short ttitle of the question.
+            - **prompt**: Text, nullable=False - The prompt used to generate the response.
+            - **order**: Integer, nullable=False - The order of the question.
+            - **created_at**: DateTime, default=datetime.utcnow - The timestamp when the question was created.
 
         """
 
@@ -1321,4 +1339,81 @@ def submit_interview_question(question_id=None):
             flash('Error submitting question to LLM: ' + response.text, 'danger')
     
     return render_template('main/submit_interview_question.html', question_text=question_text) 
+
+def get_projects_with_all_responses():
+    """
+    Count projects that have responses GENERATED for all questions.
+    """
+    # Get all questions
+    all_questions = ProjectQuestion.query.all()
+    total_questions = len(all_questions)
+    question_ids = [q.id for q in all_questions]
+    
+    if total_questions == 0:
+        return 0
+    
+    # Get all projects
+    all_projects = Project.query.all()
+    projects_with_all_responses = 0
+    
+    for project in all_projects:
+        # Get all responses for this project
+        responses = EvaluationResponse.query.filter_by(project_id=project.id).all()
+        
+        # Filter valid responses in Python instead of SQL
+        valid_responses = [
+            response for response in responses 
+            if response.response_text and 
+            response.response_text.strip() and 
+            response.response_text != "Processing..."
+        ]
+        
+        # Get unique question IDs that have responses
+        answered_question_ids = set(response.question_id for response in valid_responses)
+        
+        # Check if all questions have been answered
+        if set(question_ids).issubset(answered_question_ids):
+            projects_with_all_responses += 1
+    
+    return projects_with_all_responses
+
+def get_projects_with_all_reviewed():
+    """
+    Count projects that have ALL responses REVIEWED.
+    """
+    # Get all questions
+    all_questions = ProjectQuestion.query.all()
+    total_questions = len(all_questions)
+    question_ids = [q.id for q in all_questions]
+    
+    if total_questions == 0:
+        return 0
+    
+    # Get all projects
+    all_projects = Project.query.all()
+    projects_with_all_reviewed = 0
+    
+    for project in all_projects:
+        # Get all reviewed responses for this project
+        responses = EvaluationResponse.query.filter_by(
+            project_id=project.id,
+            reviewed=True
+        ).all()
+        
+        # Filter valid responses in Python
+        valid_responses = [
+            response for response in responses 
+            if response.response_text and 
+            response.response_text.strip() and 
+            response.response_text != "Processing..."
+        ]
+        
+        # Get unique question IDs that have reviewed responses
+        reviewed_question_ids = set(response.question_id for response in valid_responses)
+        
+        # Check if all questions have been reviewed
+        if set(question_ids).issubset(reviewed_question_ids):
+            projects_with_all_reviewed += 1
+    
+    return projects_with_all_reviewed
 

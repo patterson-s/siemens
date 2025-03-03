@@ -12,23 +12,16 @@
     </div>
 
     <div class="row">
-        <!-- Total Projects Card -->
-        <div class="col-md-6 col-xl-3 mb-4">
+        <!-- Total Projects card (Blue) -->
+        <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-primary shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Total Projects in Database
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ projects|length }}
-                            </div>
-                            <div class="mt-2">
-                                <a href="{{ url_for('main.project_table') }}" target="_blank" class="small text-primary">
-                                    View full table <i class="fas fa-external-link-alt ml-1"></i>
-                                </a>
-                            </div>
+                                Total Projects in Database</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ projects|length }}</div>
+                            <a href="{{ url_for('main.projects') }}" class="small text-primary">View full table <i class="fas fa-external-link-alt"></i></a>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-folder fa-2x text-gray-300"></i>
@@ -38,21 +31,18 @@
             </div>
         </div>
 
-        <!-- Documents Complete Card -->
-        <div class="col-md-6 col-xl-3 mb-4">
+        <!-- Projects with Documents Uploaded card (Green) -->
+        <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-success shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Projects with Documents Uploaded
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ projects_with_docs }}/{{ projects|length }}
-                            </div>
+                                Projects with Documents Uploaded</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ projects_with_docs }}/{{ projects|length }}</div>
                             <div class="progress progress-sm mt-2">
                                 <div class="progress-bar bg-success" role="progressbar" 
-                                     style="width: {{ (projects_with_docs / projects|length * 100)|round }}%">
+                                    style="width: {{ (projects_with_docs / projects|length * 100)|round }}%">
                                 </div>
                             </div>
                         </div>
@@ -64,52 +54,46 @@
             </div>
         </div>
 
-        <!-- Responses Complete Card -->
-        <div class="col-md-6 col-xl-3 mb-4">
+        <!-- Projects with ALL responses GENERATED card (Light Blue) -->
+        <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-info shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Projects with All Responses Generated
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ projects_with_responses }}/{{ projects|length }}
-                            </div>
+                                Projects with ALL Responses Generated</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ projects_with_all_responses }}/{{ projects|length }}</div>
                             <div class="progress progress-sm mt-2">
                                 <div class="progress-bar bg-info" role="progressbar" 
-                                     style="width: {{ (projects_with_responses / projects|length * 100)|round }}%">
+                                    style="width: {{ (projects_with_all_responses / projects|length * 100)|round }}%">
                                 </div>
                             </div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
+                            <i class="fas fa-clipboard-check fa-2x text-gray-300"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Reviews Complete Card -->
-        <div class="col-md-6 col-xl-3 mb-4">
+        <!-- Projects with ALL responses REVIEWED card (Yellow) -->
+        <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-warning shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                Projects with all Responses Reviewed
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ projects_reviewed }}/{{ projects|length }}
-                            </div>
+                                Projects with ALL Responses Reviewed</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ projects_with_all_reviewed }}/{{ projects|length }}</div>
                             <div class="progress progress-sm mt-2">
                                 <div class="progress-bar bg-warning" role="progressbar" 
-                                     style="width: {{ (projects_reviewed / projects|length * 100)|round }}%">
+                                    style="width: {{ (projects_with_all_reviewed / projects|length * 100)|round }}%">
                                 </div>
                             </div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                            <i class="fas fa-check-double fa-2x text-gray-300"></i>
                         </div>
                     </div>
                 </div>
