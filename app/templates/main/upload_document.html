@@ -26,12 +26,18 @@
                     </div>
                     <small class="form-text text-muted mt-2">Select the type of document you are uploading</small>
                 </div>
+                
+                
             </div>
         </div>
 
         <div class="mt-4">
             <button type="submit" class="btn btn-primary" id="uploadButton" disabled>Upload Document</button>
             <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-secondary">Cancel</a>
+            <div class="progress mt-3 d-none" id="uploadProgress">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%"></div>
+            </div>
+            <small class="text-muted d-block mt-2">Large documents may take longer to process. Please be patient.</small>
         </div>
     </form>
 
@@ -65,6 +71,11 @@
             border-color: #cccccc;
             cursor: not-allowed;
         }
+        
+        /* Progress bar styling */
+        .progress {
+            height: 10px;
+        }
     </style>
 
     <script>
@@ -73,6 +84,8 @@
             const fileInput = document.getElementById('file');
             const uploadButton = document.getElementById('uploadButton');
             const radioContainer = document.querySelector('.btn-group-toggle');
+            const progressBar = document.getElementById('uploadProgress');
+            const progressBarInner = progressBar.querySelector('.progress-bar');
 
             function checkFormValidity() {
                 const fileSelected = fileInput.files.length > 0;
@@ -83,12 +96,54 @@
             }
 
             // Add event listeners
-            fileInput.addEventListener('change', checkFormValidity);
+            fileInput.addEventListener('change', function(e) {
+                checkFormValidity();
+                
+                // Show file size information
+                if (fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                    
+                    // Suggest extraction method based on file size and type
+                    const extractionMethod = document.getElementById('extractionMethod');
+                    if (file.type.includes('pdf') && fileSizeMB > 5) {
+                        extractionMethod.value = 'robust';
+                    } else if (file.name.toLowerCase().endsWith('.docx') && fileSizeMB > 2) {
+                        extractionMethod.value = 'robust';
+                    }
+                    
+                    console.log(`File size: ${fileSizeMB} MB`);
+                }
+            });
             
             // Listen to clicks on the radio button container
             radioContainer.addEventListener('click', function(e) {
                 // Give the DOM time to update the radio button state
                 setTimeout(checkFormValidity, 50);
+            });
+            
+            // Handle form submission with progress indication
+            form.addEventListener('submit', function(e) {
+                if (uploadButton.disabled) {
+                    e.preventDefault();
+                    return;
+                }
+                
+                // Show progress bar
+                progressBar.classList.remove('d-none');
+                uploadButton.disabled = true;
+                uploadButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+                
+                // Simulate progress for better UX (actual progress would require server-side events)
+                let progress = 0;
+                const interval = setInterval(function() {
+                    progress += 5;
+                    if (progress > 90) {
+                        clearInterval(interval);
+                    }
+                    progressBarInner.style.width = `${progress}%`;
+                    progressBarInner.setAttribute('aria-valuenow', progress);
+                }, 500);
             });
 
             // Initial check

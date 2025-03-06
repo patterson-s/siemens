@@ -48,15 +48,15 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endblock %}
 
 {% block content %}
-    <h1 class="my-4">Query the Project Assessment Database</h1>
+    <h1 class="my-4">Query the Document Review Database</h1>
     
     <div class="row">
         <div class="col-md-8">
             <form method="POST" id="queryForm">
                 <div class="form-group">
-                    <label for="query">Enter your query:</label>
+                    <label for="query">Ask questions about the Document Review data:</label>
                     <textarea class="form-control" id="query" name="query" rows="4" required></textarea>
-                    <small class="form-text text-muted">Ask questions about the project assessment data.</small>
+                    <small class="form-text text-muted">Write your question in natural language.</small>
                 </div>
                 <button type="submit" class="btn btn-primary" id="submitBtn">
                     <span class="normal-text">Submit</span>
