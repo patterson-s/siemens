@@ -23,20 +23,10 @@
             </div>
             
             <div class="row mt-4">
-                <div class="col-md-6">
+                <div class="col-md-12">
                     <p id="questionCount" class="mb-2">Processed 0 out of {{ total_questions }} questions</p>
                     <p id="modelUsed" class="text-muted mb-2"></p>
                     <p id="estimatedTime" class="text-muted mb-2">Estimated time remaining: calculating...</p>
-                </div>
-                <div class="col-md-6">
-                    <div class="card bg-light">
-                        <div class="card-body">
-                            <h5 class="card-title">Token Usage</h5>
-                            <p>Input: {{ evaluation.estimated_input_tokens|default(0)|int }}</p>
-                            <p>Output: {{ evaluation.total_output_tokens|default(0)|int }}</p>
-                            <p>Total: {{ (evaluation.estimated_input_tokens|default(0) + evaluation.total_output_tokens|default(0))|int }}</p>
-                        </div>
-                    </div>
                 </div>
             </div>
             
@@ -62,6 +52,9 @@ function formatTime(seconds) {
     return `${hours} hour${hours > 1 ? 's' : ''} ${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}`;
 }
 
+let startTime = Date.now();
+let lastQuestionsAnswered = 0;
+
 function checkProgress() {
     fetch('/projects/assessment_progress/{{ evaluation_id }}')
         .then(response => response.json())
@@ -81,6 +74,19 @@ function checkProgress() {
             // Update model used
             document.getElementById('modelUsed').innerText = 
                 `Using ${data.model_used}`;
+            
+            // Calculate and update estimated time remaining
+            if (data.questions_answered > lastQuestionsAnswered) {
+                const elapsedTime = (Date.now() - startTime) / 1000; // Convert to seconds
+                const questionsRemaining = data.total_questions - data.questions_answered;
+                const averageTimePerQuestion = elapsedTime / data.questions_answered;
+                const estimatedTimeRemaining = Math.round(questionsRemaining * averageTimePerQuestion);
+                
+                document.getElementById('estimatedTime').innerText = 
+                    `Estimated time remaining: ${formatTime(estimatedTimeRemaining)}`;
+                
+                lastQuestionsAnswered = data.questions_answered;
+            }
             
             // If completed, show completion message and redirect
             if (data.is_completed) {
@@ -106,6 +112,8 @@ function checkProgress() {
 
 // Start checking progress when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    startTime = Date.now();
+    lastQuestionsAnswered = 0;
     checkProgress();
 });
 </script>
