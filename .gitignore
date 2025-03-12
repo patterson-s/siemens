@@ -71,7 +71,12 @@ instance/
 *~
 *.swp
 
+scripts/
 uploads/
 migrations/
 .idea/
 .env
+scripts/import_projects.sql
+/scripts
+/__pycache__
+/data
