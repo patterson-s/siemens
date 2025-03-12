@@ -1,92 +1,19 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Data Table</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap4.min.css">
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            overflow-x: auto;
-        }
-        .table-container {
-            padding: 10px;
-            width: 100%;
-        }
-        .dataTables_wrapper {
-            width: 100%;
-        }
-        table.dataTable {
-            width: 100% !important;
-            margin: 0 !important;
-        }
-        th, td {
-            white-space: nowrap;
-            min-width: 100px;
-        }
-        td.wrap-text {
-            white-space: normal;
-            min-width: 200px;
-        }
-        .dataTables_filter {
-            margin-bottom: 10px;
-        }
-        /* Sticky header and first column styles */
-        .table thead th {
-            position: sticky;
-            top: 0;
-            background: white;
-            z-index: 10;
-        }
-        .table th:first-child,
-        .table td:first-child {
-            position: sticky;
-            left: 0;
-            background: white;
-            z-index: 9;
-        }
-        /* When header and first column intersect */
-        .table thead th:first-child {
-            z-index: 11;
-        }
-        /* Add shadow to indicate stickiness */
-        .table th:first-child,
-        .table td:first-child {
-            box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
-        }
-        .table thead th {
-            box-shadow: 0 2px 5px -2px rgba(0,0,0,0.1);
-        }
-        .table thead th:first-child {
-            box-shadow: 2px 2px 5px -2px rgba(0,0,0,0.1);
-        }
-        /* Add styles for selected row */
-        tr.selected {
-            background-color: rgba(26, 188, 156, 0.1) !important;  /* Light teal color */
-        }
-        
-        /* Ensure selected state shows through sticky column */
-        .table td.selected {
-            background-color: rgba(26, 188, 156, 0.1) !important;
-        }
-        
-        /* Hover effect */
-        .table tbody tr:hover {
-            background-color: rgba(26, 188, 156, 0.05);
-            cursor: pointer;
-        }
-        
-        /* Ensure sticky column shows hover state */
-        .table tbody tr:hover td:first-child {
-            background-color: rgba(26, 188, 156, 0.05);
-        }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Projects Table</h1>
+        <div>
+            <a href="{{ url_for('main.export_projects', format='csv') }}" class="btn btn-success">
+                <i class="fas fa-file-csv mr-1"></i> Export as CSV
+            </a>
+            <a href="{{ url_for('main.export_projects', format='excel') }}" class="btn btn-primary ml-2">
+                <i class="fas fa-file-excel mr-1"></i> Export as Excel
+            </a>
+        </div>
+    </div>
+    
     <div class="table-container">
         <table id="projectTable" class="table table-bordered table-striped table-hover">
             <thead>
@@ -187,41 +114,41 @@
             </tbody>
         </table>
     </div>
+</div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap4.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            const table = $('#projectTable').DataTable({
-                scrollX: true,
-                scrollY: '80vh',
-                scrollCollapse: true,
-                paging: false,
-                fixedHeader: true,
-                order: [[1, 'asc'], [2, 'asc']], // Sort by Round (col 1) then File # (col 2)
-                dom: 'Bfrtip',
-                buttons: ['copy', 'excel', 'pdf'],
-                initComplete: function() {
-                    this.api().columns().every(function() {
-                        var column = this;
-                        var header = $(column.header());
-                        header.addClass('sortable');
-                    });
-                }
-            });
-
-            // Add click handler for rows
-            $('#projectTable tbody').on('click', 'tr', function() {
-                // Remove selected class from all rows and their first cells
-                table.$('tr.selected').removeClass('selected');
-                table.$('td.selected').removeClass('selected');
-                
-                // Add selected class to clicked row and its first cell
-                $(this).addClass('selected');
-                $(this).find('td:first-child').addClass('selected');
-            });
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap4.min.js"></script>
+<script>
+    $(document).ready(function() {
+        const table = $('#projectTable').DataTable({
+            scrollX: true,
+            scrollY: '80vh',
+            scrollCollapse: true,
+            paging: false,
+            fixedHeader: true,
+            order: [[1, 'asc'], [2, 'asc']], // Sort by Round (col 1) then File # (col 2)
+            dom: 'Bfrtip',
+            buttons: ['copy', 'excel', 'pdf'],
+            initComplete: function() {
+                this.api().columns().every(function() {
+                    var column = this;
+                    var header = $(column.header());
+                    header.addClass('sortable');
+                });
+            }
         });
-    </script>
-</body>
-</html> 
+
+        // Add click handler for rows
+        $('#projectTable tbody').on('click', 'tr', function() {
+            // Remove selected class from all rows and their first cells
+            table.$('tr.selected').removeClass('selected');
+            table.$('td.selected').removeClass('selected');
+            
+            // Add selected class to clicked row and its first cell
+            $(this).addClass('selected');
+            $(this).find('td:first-child').addClass('selected');
+        });
+    });
+</script>
+{% endblock %} 

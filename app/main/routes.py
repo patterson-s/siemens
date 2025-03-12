@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, request, flash, send_from_directory, jsonify, session, current_app
+from flask import render_template, redirect, url_for, request, flash, send_from_directory, jsonify, session, current_app, send_file
 from app.main import bp
 from app.models.models import Project, ProjectQuestion, Document, EvaluationRun, EvaluationResponse, EvaluationStatus, APILog, ChatSession, ChatMessage, DocumentType, Interview, InterviewQuestion  # Import InterviewQuestion
 from app import db  # Import the db instance
@@ -35,6 +35,13 @@ from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 import logging
 import json  # Import the json module
 import re  # Import re for regular expressions
+import io
+import csv
+
+try:
+    import xlsxwriter
+except ImportError:
+    pass  # Handle gracefully if xlsxwriter is not installed
 
 # Configure logging to output to the console
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -1490,4 +1497,188 @@ def get_projects_with_all_reviewed():
             projects_with_all_reviewed += 1
     
     return projects_with_all_reviewed
+
+@bp.route('/export_projects/<format>')
+@login_required
+def export_projects(format):
+    projects = Project.query.all()
+    
+    if format == 'csv':
+        # Create a CSV in memory
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header with all columns from the table
+        writer.writerow([
+            'Partner Name', 'Round', 'File #', 'Partner Type', 'Project Partners', 'WB/EIB',
+            'Scope', 'Region', 'Countries', 'Sectoral Scope', 'Specific Sector', 'Funding (USD M)',
+            'Duration', 'Start Year', 'End Year', 'WB Income Class', 'Corruption Quintile', 'CCI',
+            'Gov Type (EIU)', 'Gov Score (EIU)', 'Key Objectives', 'Public-Private Dialogues',
+            'Legal Contributions', 'Implementation Mechanisms', 'Voluntary Standards', 
+            'Voluntary Signatories', 'Organizations Supported', 'New Courses', 'Individuals Trained',
+            'Training Activities', 'Events Organized', 'Event Attendees', 'Publications',
+            'Output Achievement', 'Impact Evidence', 'Sustainability', 'Project Design',
+            'Project Management', 'Evaluation Quality', 'Impact Progress', 'Framework Significance',
+            'Practice Significance', 'Capacity Significance'
+        ])
+        
+        # Write data for all columns
+        for project in projects:
+            writer.writerow([
+                project.integrity_partner_name,
+                project.name_of_round,
+                project.file_number_db,
+                project.partner_type,
+                project.project_partners,
+                project.wb_or_eib,
+                project.scope,
+                project.region,
+                project.countries_covered,
+                project.sectoral_scope,
+                project.specific_sector,
+                project.funding_amount_usd,
+                project.duration,
+                project.start_year,
+                project.end_year,
+                project.wb_income_classification,
+                project.corruption_quintile,
+                project.cci,
+                project.government_type_eiu,
+                project.government_score_eiu,
+                project.key_project_objectives,
+                project.num_pubpri_dialogues,
+                project.num_legal_contribuntions,
+                project.num_implement_mechanisms,
+                project.num_voluntary_standards,
+                project.num_voluntary_signatories,
+                project.num_organizations_supported,
+                project.num_new_courses,
+                project.num_individ_trained,
+                project.num_training_activities,
+                project.num_organizaed_events,
+                project.num_event_attendees,
+                project.num_publications,
+                project.rate_output_achieved,
+                project.rate_impact_evidence,
+                project.rate_sustainability,
+                project.rate_project_design,
+                project.rate_project_management,
+                project.rate_quality_evaluation,
+                project.rate_impact_progress,
+                project.rate_signif_frameworks,
+                project.rate_signif_practices,
+                project.rate_signif_capacity
+            ])
+        
+        # Prepare response
+        output.seek(0)
+        return send_file(
+            io.BytesIO(output.getvalue().encode('utf-8')),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'projects_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        )
+    
+    elif format == 'excel':
+        try:
+            # Create an Excel file in memory
+            output = io.BytesIO()
+            workbook = xlsxwriter.Workbook(output)
+            worksheet = workbook.add_worksheet()
+            
+            # Add header with formatting
+            header_format = workbook.add_format({'bold': True, 'bg_color': '#4e73df', 'font_color': 'white'})
+            headers = [
+                'Partner Name', 'Round', 'File #', 'Partner Type', 'Project Partners', 'WB/EIB',
+                'Scope', 'Region', 'Countries', 'Sectoral Scope', 'Specific Sector', 'Funding (USD M)',
+                'Duration', 'Start Year', 'End Year', 'WB Income Class', 'Corruption Quintile', 'CCI',
+                'Gov Type (EIU)', 'Gov Score (EIU)', 'Key Objectives', 'Public-Private Dialogues',
+                'Legal Contributions', 'Implementation Mechanisms', 'Voluntary Standards', 
+                'Voluntary Signatories', 'Organizations Supported', 'New Courses', 'Individuals Trained',
+                'Training Activities', 'Events Organized', 'Event Attendees', 'Publications',
+                'Output Achievement', 'Impact Evidence', 'Sustainability', 'Project Design',
+                'Project Management', 'Evaluation Quality', 'Impact Progress', 'Framework Significance',
+                'Practice Significance', 'Capacity Significance'
+            ]
+            
+            for col, header in enumerate(headers):
+                worksheet.write(0, col, header, header_format)
+            
+            # Write data for all columns
+            for row, project in enumerate(projects, start=1):
+                data = [
+                    project.integrity_partner_name,
+                    project.name_of_round,
+                    project.file_number_db,
+                    project.partner_type,
+                    project.project_partners,
+                    project.wb_or_eib,
+                    project.scope,
+                    project.region,
+                    project.countries_covered,
+                    project.sectoral_scope,
+                    project.specific_sector,
+                    project.funding_amount_usd,
+                    project.duration,
+                    project.start_year,
+                    project.end_year,
+                    project.wb_income_classification,
+                    project.corruption_quintile,
+                    project.cci,
+                    project.government_type_eiu,
+                    project.government_score_eiu,
+                    project.key_project_objectives,
+                    project.num_pubpri_dialogues,
+                    project.num_legal_contribuntions,
+                    project.num_implement_mechanisms,
+                    project.num_voluntary_standards,
+                    project.num_voluntary_signatories,
+                    project.num_organizations_supported,
+                    project.num_new_courses,
+                    project.num_individ_trained,
+                    project.num_training_activities,
+                    project.num_organizaed_events,
+                    project.num_event_attendees,
+                    project.num_publications,
+                    project.rate_output_achieved,
+                    project.rate_impact_evidence,
+                    project.rate_sustainability,
+                    project.rate_project_design,
+                    project.rate_project_management,
+                    project.rate_quality_evaluation,
+                    project.rate_impact_progress,
+                    project.rate_signif_frameworks,
+                    project.rate_signif_practices,
+                    project.rate_signif_capacity
+                ]
+                
+                for col, value in enumerate(data):
+                    worksheet.write(row, col, value)
+            
+            # Auto-adjust column widths
+            for col, header in enumerate(headers):
+                worksheet.set_column(col, col, len(header) + 5)
+            
+            # Add text wrapping for columns with potentially long content
+            wrap_format = workbook.add_format({'text_wrap': True})
+            for col in [4, 9, 10, 20]:  # Project Partners, Sectoral Scope, Specific Sector, Key Objectives
+                worksheet.set_column(col, col, 30, wrap_format)
+            
+            workbook.close()
+            
+            # Prepare response
+            output.seek(0)
+            return send_file(
+                output,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name=f'projects_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+            )
+        except NameError:
+            flash('Excel export is not available. Please install xlsxwriter package.', 'warning')
+            return redirect(url_for('main.project_table'))
+    
+    # Default fallback
+    flash('Invalid export format specified.', 'danger')
+    return redirect(url_for('main.project_table'))
 
