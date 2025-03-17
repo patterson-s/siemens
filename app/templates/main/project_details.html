@@ -342,11 +342,11 @@
                             </div>
                             <div class="form-group">
                                 <label for="name_of_round">Funding Round</label>
-                                <input type="text" class="form-control" id="name_of_round" name="name_of_round" value="{{ project.name_of_round }}">
+                                <input type="text" class="form-control" id="name_of_round" name="name_of_round" value="{{ project.name_of_round or '' }}">
                             </div>
                             <div class="form-group">
                                 <label for="file_number_db">File Number</label>
-                                <input type="text" class="form-control" id="file_number_db" name="file_number_db" value="{{ project.file_number_db }}">
+                                <input type="text" class="form-control" id="file_number_db" name="file_number_db" value="{{ project.file_number_db or '' }}">
                             </div>
                             <div class="form-group">
                                 <label for="scope">Scope</label>
@@ -390,7 +390,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="funding_amount_usd">Funding (USD)</label>
-                                <input type="text" class="form-control" id="funding_amount_usd" name="funding_amount_usd" value="{{ project.funding_amount_usd }}">
+                                <input type="text" class="form-control" id="funding_amount_usd" name="funding_amount_usd" value="{{ project.funding_amount_usd or '' }}">
                             </div>
                             <div class="form-group">
                                 <label for="duration">Duration</label>
@@ -406,7 +406,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="government_score_eiu">Gov Score (EIU)</label>
-                                <input type="text" class="form-control" id="government_score_eiu" name="government_score_eiu" value="{{ project.government_score_eiu }}">
+                                <input type="text" class="form-control" id="government_score_eiu" name="government_score_eiu" value="{{ project.government_score_eiu or '' }}">
                             </div>
                             <div class="form-group">
                                 <label for="notes">Notes</label>
