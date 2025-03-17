@@ -127,9 +127,28 @@
             scrollCollapse: true,
             paging: false,
             fixedHeader: true,
-            order: [[1, 'asc'], [2, 'asc']], // Sort by Round (col 1) then File # (col 2)
+            order: [[1, 'asc'], [2, 'asc']], // Already correctly set for Round (col 1) and File # (col 2)
             dom: 'Bfrtip',
-            buttons: ['copy', 'excel', 'pdf'],
+            buttons: [
+                {
+                    extend: 'csv',
+                    exportOptions: {
+                        order: 'applied' // This will maintain the same sorting as the table
+                    }
+                },
+                {
+                    extend: 'excel',
+                    exportOptions: {
+                        order: 'applied' // This will maintain the same sorting as the table
+                    }
+                },
+                {
+                    extend: 'copy',
+                    exportOptions: {
+                        order: 'applied'
+                    }
+                }
+            ],
             initComplete: function() {
                 this.api().columns().every(function() {
                     var column = this;

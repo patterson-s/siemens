@@ -461,43 +461,73 @@
                         <div class="form-group row mb-2">
                             <label for="num_pubpri_dialogues" class="col-8 col-form-label metrics-label">i. Number of public-private dialogue platforms, hubs, or centres for dialogue</label>
                             <div class="col-4">
-                                <input type="number" class="form-control" id="num_pubpri_dialogues" name="num_pubpri_dialogues" 
-                                       value="{{ project.num_pubpri_dialogues or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="num_pubpri_dialogues" 
+                                       name="num_pubpri_dialogues" 
+                                       step="1"
+                                       min="0"
+                                       value="{{ project.num_pubpri_dialogues|int if project.num_pubpri_dialogues else '' }}">
                             </div>
                         </div>
                         <div class="form-group row mb-2">
                             <label for="num_legal_contribuntions" class="col-8 col-form-label metrics-label">ii. Number of domestic laws/policies introduced or influenced</label>
                             <div class="col-4">
-                                <input type="number" class="form-control" id="num_legal_contribuntions" name="num_legal_contribuntions"
-                                       value="{{ project.num_legal_contribuntions or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="num_legal_contribuntions" 
+                                       name="num_legal_contribuntions"
+                                       step="1"
+                                       min="0"
+                                       value="{{ project.num_legal_contribuntions|int if project.num_legal_contribuntions else '' }}">
                             </div>
                         </div>
                         <div class="form-group row mb-2">
-                            <label for="num_implement_mechanisms" class="col-8 col-form-label metrics-label">iii. Number of procurement rules, procedures or systems influenced </label>
+                            <label for="num_implement_mechanisms" class="col-8 col-form-label metrics-label">iii. Number of procurement rules, procedures or systems influenced</label>
                             <div class="col-4">
-                                <input type="number" class="form-control" id="num_implement_mechanisms" name="num_implement_mechanisms"
-                                       value="{{ project.num_implement_mechanisms or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="num_implement_mechanisms" 
+                                       name="num_implement_mechanisms"
+                                       step="1"
+                                       min="0"
+                                       value="{{ project.num_implement_mechanisms|int if project.num_implement_mechanisms else '' }}">
                             </div>
                         </div>
                         <div class="form-group row mb-2">
                             <label for="num_voluntary_standards" class="col-8 col-form-label metrics-label">iv. Number of voluntary standards/integrity pacts/ codes of conduct created or strengthened</label>
                             <div class="col-4">
-                                <input type="number" class="form-control" id="num_voluntary_standards" name="num_voluntary_standards"
-                                       value="{{ project.num_voluntary_standards or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="num_voluntary_standards" 
+                                       name="num_voluntary_standards"
+                                       step="1"
+                                       min="0"
+                                       value="{{ project.num_voluntary_standards|int if project.num_voluntary_standards else '' }}">
                             </div>
                         </div>
                         <div class="form-group row mb-2">
                             <label for="num_voluntary_signatories" class="col-8 col-form-label metrics-label">v. Number of actors signing up to pacts/voluntary standards, or codes of conducts</label>
                             <div class="col-4">
-                                <input type="number" class="form-control" id="num_voluntary_signatories" name="num_voluntary_signatories"
-                                       value="{{ project.num_voluntary_signatories or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="num_voluntary_signatories" 
+                                       name="num_voluntary_signatories"
+                                       step="1"
+                                       min="0"
+                                       value="{{ project.num_voluntary_signatories|int if project.num_voluntary_signatories else '' }}">
                             </div>
                         </div>
-                        <div class="form-group row mb-3">
+                        <div class="form-group row mb-2">
                             <label for="num_organizations_supported" class="col-8 col-form-label metrics-label">vi. Number of organizations supported in/encouraged to engage in anti-corruption</label>
                             <div class="col-4">
-                                <input type="number" class="form-control" id="num_organizations_supported" name="num_organizations_supported"
-                                       value="{{ project.num_organizations_supported or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="num_organizations_supported" 
+                                       name="num_organizations_supported"
+                                       step="1"
+                                       min="0"
+                                       value="{{ project.num_organizations_supported|int if project.num_organizations_supported else '' }}">
                             </div>
                         </div>
 
@@ -506,48 +536,78 @@
                         <div class="form-group row mb-2">
                             <label for="num_new_courses" class="col-8 col-form-label metrics-label">Number of new courses/curricula/training materials developed</label>
                             <div class="col-4">
-                                <input type="number" class="form-control" id="num_new_courses" name="num_new_courses"
-                                       value="{{ project.num_new_courses or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="num_new_courses" 
+                                       name="num_new_courses"
+                                       step="1"
+                                       min="0"
+                                       value="{{ project.num_new_courses|int if project.num_new_courses else '' }}">
                             </div>
                         </div>
 
                         <div class="form-group row mb-2">
                             <label for="num_individ_trained" class="col-8 col-form-label metrics-label">Total number of individuals educated/trained</label>
                             <div class="col-4">
-                                <input type="number" class="form-control" id="num_individ_trained" name="num_individ_trained"
-                                       value="{{ project.num_individ_trained or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="num_individ_trained" 
+                                       name="num_individ_trained"
+                                       step="1"
+                                       min="0"
+                                       value="{{ project.num_individ_trained|int if project.num_individ_trained else '' }}">
                             </div>
                         </div>
 
                         <div class="form-group row mb-2">
                             <label for="num_training_activities" class="col-8 col-form-label metrics-label">Total number of training/capacity building activities</label>
                             <div class="col-4">
-                                <input type="number" class="form-control" id="num_training_activities" name="num_training_activities"
-                                       value="{{ project.num_training_activities or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="num_training_activities" 
+                                       name="num_training_activities"
+                                       step="1"
+                                       min="0"
+                                       value="{{ project.num_training_activities|int if project.num_training_activities else '' }}">
                             </div>
                         </div>
 
                         <div class="form-group row mb-2">
                             <label for="num_organizaed_events" class="col-8 col-form-label metrics-label">Number of major events (conferences, fairs) organized or co-organized</label>
                             <div class="col-4">
-                                <input type="number" class="form-control" id="num_organizaed_events" name="num_organizaed_events"
-                                       value="{{ project.num_organizaed_events or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="num_organizaed_events" 
+                                       name="num_organizaed_events"
+                                       step="1"
+                                       min="0"
+                                       value="{{ project.num_organizaed_events|int if project.num_organizaed_events else '' }}">
                             </div>
                         </div>
 
                         <div class="form-group row mb-2">
-                            <label for="num_event_attendees" class="col-8 col-form-label metrics-label">Number of people attending said events </label>
+                            <label for="num_event_attendees" class="col-8 col-form-label metrics-label">Number of people attending said events</label>
                             <div class="col-4">
-                                <input type="number" class="form-control" id="num_event_attendees" name="num_event_attendees"
-                                       value="{{ project.num_event_attendees or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="num_event_attendees" 
+                                       name="num_event_attendees"
+                                       step="1"
+                                       min="0"
+                                       value="{{ project.num_event_attendees|int if project.num_event_attendees else '' }}">
                             </div>
                         </div>
 
-                        <div class="form-group row mb-3">
-                            <label for="num_publications" class="col-8 col-form-label metrics-label">Number of publications produced by the project </label>
+                        <div class="form-group row mb-2">
+                            <label for="num_publications" class="col-8 col-form-label metrics-label">Number of publications produced by the project</label>
                             <div class="col-4">
-                                <input type="number" class="form-control" id="num_publications" name="num_publications"
-                                       value="{{ project.num_publications or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="num_publications" 
+                                       name="num_publications"
+                                       step="1"
+                                       min="0"
+                                       value="{{ project.num_publications|int if project.num_publications else '' }}">
                             </div>
                         </div>
 
@@ -571,10 +631,13 @@
                             <div class="col-4">
                                 <select class="form-control" id="rate_sustainability" name="rate_sustainability">
                                     <option value="" {% if not project.rate_sustainability %}selected{% endif %}>Select...</option>
-                                    <option value="1" {% if project.rate_sustainability == 1 %}selected{% endif %}>1</option>
-                                    <option value="2" {% if project.rate_sustainability == 2 %}selected{% endif %}>2</option>
+                                    <option value="4" {% if project.rate_sustainability == 4 %}selected{% endif %}>4</option>                                 
+                                    <option value="3.5" {% if project.rate_sustainability == 3.5 %}selected{% endif %}>3.5</option>
                                     <option value="3" {% if project.rate_sustainability == 3 %}selected{% endif %}>3</option>
-                                    <option value="4" {% if project.rate_sustainability == 4 %}selected{% endif %}>4</option>
+                                    <option value="2.5" {% if project.rate_sustainability == 2.5 %}selected{% endif %}>2.5</option>
+                                    <option value="2" {% if project.rate_sustainability == 2 %}selected{% endif %}>2</option>
+                                    <option value="1.5" {% if project.rate_sustainability == 1.5 %}selected{% endif %}>1.5</option>
+                                    <option value="1" {% if project.rate_sustainability == 1 %}selected{% endif %}>1</option>
                                 </select>
                             </div>
                         </div>
@@ -584,10 +647,13 @@
                             <label for="rate_project_design" class="d-block mb-2 metrics-label">Project Design Rating:</label>
                             <select class="form-control" id="rate_project_design" name="rate_project_design">
                                 <option value="" {% if not project.rate_project_design %}selected{% endif %}>Select...</option>
-                                <option value="1" {% if project.rate_project_design == 1 %}selected{% endif %}>1</option>
-                                <option value="2" {% if project.rate_project_design == 2 %}selected{% endif %}>2</option>
-                                <option value="3" {% if project.rate_project_design == 3 %}selected{% endif %}>3</option>
                                 <option value="4" {% if project.rate_project_design == 4 %}selected{% endif %}>4</option>
+                                <option value="3.5" {% if project.rate_project_design == 3.5 %}selected{% endif %}>3.5</option>
+                                <option value="3" {% if project.rate_project_design == 3 %}selected{% endif %}>3</option>
+                                <option value="2.5" {% if project.rate_project_design == 2.5 %}selected{% endif %}>2.5</option>
+                                <option value="2" {% if project.rate_project_design == 2 %}selected{% endif %}>2</option>
+                                <option value="1.5" {% if project.rate_project_design == 1.5 %}selected{% endif %}>1.5</option>
+                                <option value="1" {% if project.rate_project_design == 1 %}selected{% endif %}>1</option>
                             </select>
                         </div>
 
@@ -1237,21 +1303,25 @@ $(document).ready(function() {
     $('#metricsForm').on('submit', function(e) {
         e.preventDefault();
         
+        // Convert numeric fields to proper decimal values before submitting
+        $(this).find('input[type="number"]').each(function() {
+            if ($(this).val()) {
+                $(this).val(parseFloat($(this).val()));
+            }
+        });
+        
         $.ajax({
             url: this.action,
             method: 'POST',
             data: $(this).serialize(),
             success: function(response) {
                 if (response.success) {
-                    metricsFormChanged = false;  // Reset the change tracker
-                    // Show success message
+                    metricsFormChanged = false;
                     const alertDiv = $('<div class="alert alert-success alert-dismissible fade show" role="alert">')
                         .text('Project scoring updated successfully')
                         .append('<button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>');
                     
                     $('#metricsForm').before(alertDiv);
-                    
-                    // Remove alert after 3 seconds
                     setTimeout(function() {
                         alertDiv.alert('close');
                     }, 3000);

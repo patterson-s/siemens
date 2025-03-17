@@ -1220,28 +1220,28 @@ def update_project_metrics(project_id):
     project = Project.query.get_or_404(project_id)
     
     try:
-        # Update numeric counts
-        project.num_pubpri_dialogues = request.form.get('num_pubpri_dialogues', type=int)
-        project.num_legal_contribuntions = request.form.get('num_legal_contribuntions', type=int)
-        project.num_implement_mechanisms = request.form.get('num_implement_mechanisms', type=int)
-        project.num_voluntary_standards = request.form.get('num_voluntary_standards', type=int)
-        project.num_voluntary_signatories = request.form.get('num_voluntary_signatories', type=int)
-        project.num_organizations_supported = request.form.get('num_organizations_supported', type=int)
-        project.num_new_courses = request.form.get('num_new_courses', type=int)
-        project.num_individ_trained = request.form.get('num_individ_trained', type=int)
-        project.num_training_activities = request.form.get('num_training_activities', type=int)
-        project.num_organizaed_events = request.form.get('num_organizaed_events', type=int)
-        project.num_event_attendees = request.form.get('num_event_attendees', type=int)
-        project.num_publications = request.form.get('num_publications', type=int)
+        # Update numeric counts - using type=float to allow decimal values
+        project.num_pubpri_dialogues = request.form.get('num_pubpri_dialogues', type=float)
+        project.num_legal_contribuntions = request.form.get('num_legal_contribuntions', type=float)
+        project.num_implement_mechanisms = request.form.get('num_implement_mechanisms', type=float)
+        project.num_voluntary_standards = request.form.get('num_voluntary_standards', type=float)
+        project.num_voluntary_signatories = request.form.get('num_voluntary_signatories', type=float)
+        project.num_organizations_supported = request.form.get('num_organizations_supported', type=float)
+        project.num_new_courses = request.form.get('num_new_courses', type=float)
+        project.num_individ_trained = request.form.get('num_individ_trained', type=float)
+        project.num_training_activities = request.form.get('num_training_activities', type=float)
+        project.num_organizaed_events = request.form.get('num_organizaed_events', type=float)
+        project.num_event_attendees = request.form.get('num_event_attendees', type=float)
+        project.num_publications = request.form.get('num_publications', type=float)
         
         # Update ratings
-        project.rate_output_achieved = request.form.get('rate_output_achieved', type=int)
+        project.rate_output_achieved = request.form.get('rate_output_achieved', type=float)
         project.rate_impact_evidence = request.form.get('rate_impact_evidence')  # String value
-        project.rate_sustainability = request.form.get('rate_sustainability', type=int)
-        project.rate_project_design = request.form.get('rate_project_design', type=int)
+        project.rate_sustainability = request.form.get('rate_sustainability', type=float)
+        project.rate_project_design = request.form.get('rate_project_design', type=float)
         project.rate_project_management = request.form.get('rate_project_management')  # String value
         project.rate_quality_evaluation = request.form.get('rate_quality_evaluation')  # String value
-        project.rate_impact_progress = request.form.get('rate_impact_progress', type=int)
+        project.rate_impact_progress = request.form.get('rate_impact_progress', type=float)
         
         # Update significance ratings
         project.rate_signif_frameworks = request.form.get('rate_signif_frameworks')
@@ -1287,7 +1287,11 @@ def preview_document(document_id):
 @bp.route('/project_table')
 @login_required
 def project_table():
-    projects = Project.query.all()
+    # Update query to sort by Round and File # in ascending order
+    projects = Project.query.order_by(
+        Project.name_of_round.asc(),
+        Project.file_number_db.asc()
+    ).all()
     return render_template('main/project_table.html', projects=projects) 
 
 @bp.route('/interviews')
@@ -1501,7 +1505,11 @@ def get_projects_with_all_reviewed():
 @bp.route('/export_projects/<format>')
 @login_required
 def export_projects(format):
-    projects = Project.query.all()
+    # Apply the same sorting as the table view
+    projects = Project.query.order_by(
+        Project.name_of_round.asc(),
+        Project.file_number_db.asc()
+    ).all()
     
     if format == 'csv':
         # Create a CSV in memory
