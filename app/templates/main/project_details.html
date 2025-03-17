@@ -342,11 +342,24 @@
                             </div>
                             <div class="form-group">
                                 <label for="name_of_round">Funding Round</label>
-                                <input type="text" class="form-control" id="name_of_round" name="name_of_round" value="{{ project.name_of_round or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="name_of_round" 
+                                       name="name_of_round" 
+                                       step="1" 
+                                       min="1"
+                                       value="{{ project.name_of_round|int if project.name_of_round else '' }}">
                             </div>
                             <div class="form-group">
                                 <label for="file_number_db">File Number</label>
-                                <input type="text" class="form-control" id="file_number_db" name="file_number_db" value="{{ project.file_number_db or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="file_number_db" 
+                                       name="file_number_db" 
+                                       step="0.1" 
+                                       min="0"
+                                       pattern="\d*\.?\d{0,1}"
+                                       value="{{ '%.1f'|format(project.file_number_db) if project.file_number_db else '' }}">
                             </div>
                             <div class="form-group">
                                 <label for="scope">Scope</label>
@@ -390,7 +403,14 @@
                             </div>
                             <div class="form-group">
                                 <label for="funding_amount_usd">Funding (USD)</label>
-                                <input type="text" class="form-control" id="funding_amount_usd" name="funding_amount_usd" value="{{ project.funding_amount_usd or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="funding_amount_usd" 
+                                       name="funding_amount_usd" 
+                                       min="0"
+                                       step="any"
+                                       pattern="\d*\.?\d{0,2}"
+                                       value="{{ '%.2f'|format(project.funding_amount_usd) if project.funding_amount_usd else '' }}">
                             </div>
                             <div class="form-group">
                                 <label for="duration">Duration</label>
@@ -406,7 +426,14 @@
                             </div>
                             <div class="form-group">
                                 <label for="government_score_eiu">Gov Score (EIU)</label>
-                                <input type="text" class="form-control" id="government_score_eiu" name="government_score_eiu" value="{{ project.government_score_eiu or '' }}">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="government_score_eiu" 
+                                       name="government_score_eiu" 
+                                       min="0"
+                                       step="any"
+                                       pattern="\d*\.?\d{0,2}"
+                                       value="{{ '%.2f'|format(project.government_score_eiu) if project.government_score_eiu else '' }}">
                             </div>
                             <div class="form-group">
                                 <label for="notes">Notes</label>
