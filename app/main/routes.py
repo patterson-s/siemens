@@ -436,24 +436,24 @@ def start_assessment(project_id):
             flash(f'Error starting assessment: {str(e)}', 'danger')
             return redirect(request.url)
     
-    # Add this code to create a map of the latest responses
-    latest_responses = db.session.query(EvaluationResponse)\
-        .filter(EvaluationResponse.project_id == project_id)\
-        .order_by(EvaluationResponse.created_at.desc())\
-        .all()
-    
-    # Create a map of question_id to latest response
+    # Get all project responses and create a map of the most recent response for each question
     latest_responses_map = {}
-    for response in latest_responses:
-        if response.question_id not in latest_responses_map:
-            latest_responses_map[response.question_id] = response
+    
+    # Get all responses for this project
+    all_responses = EvaluationResponse.query.filter_by(project_id=project_id).all()
+    
+    # Group by question_id and find the latest for each
+    question_responses = {}
+    for response in all_responses:
+        if response.question_id not in question_responses or \
+           response.created_at > question_responses[response.question_id].created_at:
+            question_responses[response.question_id] = response
     
     return render_template('main/start_assessment.html', 
                            project=project, 
                            questions=questions, 
                            config=current_app.config,
-                           latest_responses=latest_responses,
-                           latest_responses_map=latest_responses_map)
+                           question_responses=question_responses)
 
 @bp.route('/projects/<int:project_id>/assessment/<int:evaluation_id>')
 @login_required
@@ -1722,4 +1722,12 @@ def export_projects(format):
     # Default fallback
     flash('Invalid export format specified.', 'danger')
     return redirect(url_for('main.project_table'))
+
+@bp.route('/unmark_response_reviewed/<int:response_id>', methods=['POST'])
+@login_required
+def unmark_response_reviewed(response_id):
+    response = EvaluationResponse.query.get_or_404(response_id)
+    response.reviewed = False
+    db.session.commit()
+    return jsonify({'success': True})
 

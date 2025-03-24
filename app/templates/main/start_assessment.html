@@ -128,7 +128,7 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Select Questions</h5>
                 <div class="custom-control custom-checkbox">
-                    <input type="checkbox" class="custom-control-input" id="selectAllQuestions" checked>
+                    <input type="checkbox" class="custom-control-input" id="selectAllQuestions">
                     <label class="custom-control-label" for="selectAllQuestions">Select All</label>
                 </div>
             </div>
@@ -136,8 +136,8 @@
                 {% for question in questions|sort(attribute='order') %}
                     {% set is_reviewed = false %}
                     
-                    {# Check if this question has a reviewed response in the latest assessment #}
-                    {% if latest_responses and question.id in latest_responses_map and latest_responses_map[question.id].reviewed %}
+                    {# Check if this question has a reviewed response #}
+                    {% if question_responses and question.id in question_responses and question_responses[question.id].reviewed %}
                         {% set is_reviewed = true %}
                     {% endif %}
                     
@@ -146,7 +146,7 @@
                                id="question_{{ question.id }}" 
                                name="selected_questions" 
                                value="{{ question.id }}"
-                               {% if is_reviewed %}disabled{% else %}checked{% endif %}>
+                               {% if is_reviewed %}disabled{% endif %}>
                         <label class="custom-control-label {% if is_reviewed %}text-muted{% endif %}" 
                                for="question_{{ question.id }}">
                             <strong>{{ question.name }}</strong>
@@ -162,28 +162,53 @@
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary">Generate Responses</button>
-        <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary" id="generateButton" disabled>Generate Responses</button>
+        <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Project
+        </a>
     </form>
 
     <!-- Add JavaScript for checkbox functionality -->
     {% block scripts %}
     <script>
+        // Function to check if at least one document and one question are selected
+        function checkSelections() {
+            const hasSelectedDocuments = $('.document-checkbox:checked').length > 0;
+            const hasSelectedQuestions = $('.question-checkbox:checked').length > 0;
+            
+            // Enable or disable the Generate button based on selections
+            $('#generateButton').prop('disabled', !(hasSelectedDocuments && hasSelectedQuestions));
+            
+            // Update the status text
+            let statusText = '';
+            if (!hasSelectedDocuments) statusText += 'Select at least one document. ';
+            if (!hasSelectedQuestions) statusText += 'Select at least one question.';
+            
+            // Display status message if needed
+            if (statusText) {
+                if (!$('#selectionStatus').length) {
+                    $('<div id="selectionStatus" class="alert alert-info mt-2"></div>').insertAfter('#generateButton');
+                }
+                $('#selectionStatus').text(statusText);
+            } else {
+                $('#selectionStatus').remove();
+            }
+        }
+
         document.getElementById('selectAllDocs').addEventListener('change', function() {
             const checkboxes = document.getElementsByClassName('document-checkbox');
             for (let checkbox of checkboxes) {
                 checkbox.checked = this.checked;
             }
+            checkSelections();
         });
 
         document.getElementById('selectAllQuestions').addEventListener('change', function() {
-            const checkboxes = document.getElementsByClassName('question-checkbox');
+            const checkboxes = document.querySelectorAll('.question-checkbox:not([disabled])');
             for (let checkbox of checkboxes) {
-                // Only change state of checkboxes that aren't disabled
-                if (!checkbox.disabled) {
-                    checkbox.checked = this.checked;
-                }
+                checkbox.checked = this.checked;
             }
+            checkSelections();
         });
 
         // Update "Select All" when individual checkboxes change
@@ -192,48 +217,21 @@
                 const allDocs = document.getElementsByClassName('document-checkbox');
                 const selectAllDocs = document.getElementById('selectAllDocs');
                 selectAllDocs.checked = Array.from(allDocs).every(cb => cb.checked);
+                checkSelections();
             }
             if (e.target.classList.contains('question-checkbox')) {
                 const allQuestions = document.querySelectorAll('.question-checkbox:not([disabled])');
                 const selectAllQuestions = document.getElementById('selectAllQuestions');
-                selectAllQuestions.checked = Array.from(allQuestions).every(cb => cb.checked);
+                selectAllQuestions.checked = allQuestions.length > 0 && 
+                                             Array.from(allQuestions).every(cb => cb.checked);
+                checkSelections();
             }
         });
 
-        // Check "Select All" state on page load
+        // Check selections on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // For questions, only consider non-disabled checkboxes
-            const enabledQuestions = document.querySelectorAll('.question-checkbox:not([disabled])');
-            const selectAllQuestions = document.getElementById('selectAllQuestions');
-            selectAllQuestions.checked = enabledQuestions.length > 0 && 
-                                         Array.from(enabledQuestions).every(cb => cb.checked);
-            
-            // For documents
-            const allDocs = document.getElementsByClassName('document-checkbox');
-            const selectAllDocs = document.getElementById('selectAllDocs');
-            selectAllDocs.checked = allDocs.length > 0 && Array.from(allDocs).every(cb => cb.checked);
-
-            // Check each document section
-            checkDocumentSection('original-proposal-docs', 'Original Proposals');
-            checkDocumentSection('final-project-report-docs', 'Final Project Reports');
-            checkDocumentSection('external-evaluation-docs', 'External Evaluations');
+            checkSelections();
         });
-
-        function checkDocumentSection(sectionId, displayName) {
-            const section = document.getElementById(sectionId);
-            
-            // If section exists but has no checkboxes
-            if (section && !section.querySelector('.custom-control-checkbox')) {
-                // Check if section is empty
-                if (section.children.length === 0) {
-                    // Add the "No documents available" message
-                    const message = document.createElement('p');
-                    message.className = 'text-muted';
-                    message.textContent = `No ${displayName.toLowerCase()} available.`;
-                    section.appendChild(message);
-                }
-            }
-        }
 
         // Update the checkStatus function
         function checkStatus() {
