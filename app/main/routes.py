@@ -1183,7 +1183,10 @@ def update_project(project_id):
     
     # Calculate duration string based on start and end years if both are provided
     if project.start_year and project.end_year:
-        project.duration = f"{project.end_year - project.start_year + 1} years ({project.start_year}-{project.end_year})"
+        # Calculate number of completed years (end_year - start_year)
+        # For example: 2015-2018 = 3 years (not 4)
+        years = project.end_year - project.start_year
+        project.duration = f"{years} years ({project.start_year}-{project.end_year})"
     
     db.session.commit()
     
