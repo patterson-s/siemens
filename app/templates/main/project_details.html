@@ -318,7 +318,7 @@
                                 </tr>
                                 <tr>
                                     <th>CCI</th>
-                                    <td>{{ "%.2f"|format(project.cci|float) if project.cci }}</td>
+                                    <td>{{ "%.2f"|format(project.cci|float) if project.cci is not none else "" }}</td>
                                 </tr>
                                 <tr>
                                     <th>Gov Type (EIU)</th>
@@ -479,7 +479,7 @@
                                        min="-2.5"
                                        max="2.5"
                                        step="0.01"
-                                       value="{{ '%.2f'|format(project.cci) if project.cci else '' }}">
+                                       value="{{ '%.2f'|format(project.cci) if project.cci is not none else '' }}">
                                 <small class="form-text text-muted">Value between -2.5 and 2.5</small>
                             </div>
                             <div class="form-group">
