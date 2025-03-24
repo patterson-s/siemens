@@ -811,8 +811,14 @@ def ai_agent():
         db.session.commit()
         session['chat_session_id'] = chat_session.id
 
+    # Get all available questions for the form
+    all_questions = ProjectQuestion.query.order_by(ProjectQuestion.order).all()
+
     if request.method == 'POST':
         user_query = request.form.get('query')
+        
+        # Get selected questions (if any)
+        selected_questions = request.form.getlist('selected_questions')
         
         # Create user message
         user_message = ChatMessage(
@@ -926,12 +932,22 @@ def ai_agent():
             # Retrieve and decrypt evaluation responses
             decrypted_responses = []
             
+            # Base query for evaluation responses
+            evaluation_query = EvaluationResponse.query
+            
+            # Filter by project if specified
             if project_id:
-                # If a specific project is mentioned, retrieve responses for that project
-                evaluation_responses = EvaluationResponse.query.filter_by(project_id=project_id).all()
+                evaluation_query = evaluation_query.filter_by(project_id=project_id)
+                
+            # Filter by selected questions if specified
+            if selected_questions:
+                evaluation_query = evaluation_query.filter(EvaluationResponse.question_id.in_(selected_questions))
+                
+            # Get the responses (limit if no filters are applied)
+            if not project_id and not selected_questions:
+                evaluation_responses = evaluation_query.limit(50).all()
             else:
-                # Otherwise, retrieve a limited number of responses
-                evaluation_responses = EvaluationResponse.query.limit(50).all()
+                evaluation_responses = evaluation_query.all()
             
             # Decrypt the responses
             for response in evaluation_responses:
@@ -964,6 +980,11 @@ def ai_agent():
             
             # Combine schema description with user query and decrypted responses
             full_query = f"{schema_description}\n\nDecrypted Evaluation Responses:\n{formatted_responses}\n\nUser Query: {user_query}"
+            
+            # If questions were filtered, add that context to the query
+            if selected_questions:
+                question_names = [q.name for q in ProjectQuestion.query.filter(ProjectQuestion.id.in_(selected_questions)).all()]
+                full_query += f"\n\nNote: The responses have been filtered to only include those for the following questions: {', '.join(question_names)}"
             
             # Invoke the agent with the full query
             try:
@@ -1010,10 +1031,12 @@ def ai_agent():
             .all()
 
         return render_template('main/ai_agent.html',
-                               response=output,  # Pass the output to the template
-                               chat_history=messages,
-                               current_session=chat_session,
-                               all_sessions=ChatSession.query.order_by(ChatSession.created_at.desc()).all())
+                              response=output,  # Pass the output to the template
+                              chat_history=messages,
+                              current_session=chat_session,
+                              all_sessions=ChatSession.query.order_by(ChatSession.created_at.desc()).all(),
+                              questions=all_questions,
+                              selected_questions=selected_questions)
 
     # GET request handling
     messages = ChatMessage.query.filter_by(session_id=chat_session.id)\
@@ -1021,10 +1044,12 @@ def ai_agent():
         .all()
 
     return render_template('main/ai_agent.html',
-                           response=None,
-                           chat_history=messages,
-                           current_session=chat_session,
-                           all_sessions=ChatSession.query.order_by(ChatSession.created_at.desc()).all())
+                          response=None,
+                          chat_history=messages,
+                          current_session=chat_session,
+                          all_sessions=ChatSession.query.order_by(ChatSession.created_at.desc()).all(),
+                          questions=all_questions,
+                          selected_questions=[])
 
 @bp.route('/ai-agent/new-session')
 def new_chat_session():
