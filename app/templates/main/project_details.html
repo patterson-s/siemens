@@ -103,7 +103,7 @@
                                         {% else %}
                                             <span class="badge badge-outline-info mr-2" style="min-width: 100px;">Not Reviewed</span>
                                         {% endif %}
-                                        <i class="fas fa-chevron-down transition-rotate"></i>
+                                        <i class="fas fa-chevron-down"></i>
                                     </span>
                                 </div>
 
@@ -974,11 +974,17 @@
         z-index: 1;
         border-bottom: 1px solid #dee2e6;
     }
-    .transition-rotate {
+    .fa-chevron-down {
         transition: transform 0.2s ease-in-out;
+        transform: rotate(-90deg); /* Default position pointing right */
     }
-    .collapsed .transition-rotate {
-        transform: rotate(-90deg);
+
+    .fa-chevron-down.collapsed {
+        transform: rotate(-90deg); /* Collapsed state pointing right */
+    }
+
+    .fa-chevron-down:not(.collapsed) {
+        transform: rotate(0deg); /* Expanded state pointing down */
     }
 </style>
 {% endblock %}
@@ -1004,32 +1010,37 @@ $(document).ready(function() {
         $('#metricsCard').show();
     });
 
-    // Initialize collapse state for chevrons
-    $('.collapse').each(function() {
-        const chevron = $(this).prev().find('.transition-rotate');
-        if (!$(this).hasClass('show')) {
-            chevron.addClass('collapsed');
-        }
-    });
-
     // Handle collapse toggle and chevron rotation
-    $('.collapse').on('show.bs.collapse', function() {
-        const chevron = $(this).prev().find('.transition-rotate');
-        chevron.removeClass('collapsed');
-    }).on('hide.bs.collapse', function() {
-        const chevron = $(this).prev().find('.transition-rotate');
-        chevron.addClass('collapsed');
+    $('.btn[data-toggle="collapse"]').on('click', function(e) {
+        // Remove Bootstrap's data-toggle attribute after the first initialization
+        // This prevents Bootstrap from automatically handling the collapse
+        $(this).removeAttr('data-toggle');
+        
+        const chevron = $(this).find('.fa-chevron-down');
+        const targetId = $(this).data('target');
+        const target = $(targetId);
+        
+        // Toggle the collapse manually
+        if (target.hasClass('show')) {
+            target.removeClass('show');
+        } else {
+            target.addClass('show');
+        }
+        
+        // Toggle the chevron state
+        chevron.toggleClass('collapsed');
     });
 
-    // Expand/Collapse All Responses
+    // Expand/Collapse All function
     window.toggleAllResponses = function(expand) {
         const responses = $('.collapse');
+        const chevrons = $('.fa-chevron-down');
         if (expand) {
             responses.collapse('show');
-            $('.transition-rotate').removeClass('collapsed');
+            chevrons.removeClass('collapsed');
         } else {
             responses.collapse('hide');
-            $('.transition-rotate').addClass('collapsed');
+            chevrons.addClass('collapsed');
         }
     };
 
