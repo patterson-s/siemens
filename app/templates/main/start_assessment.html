@@ -4,6 +4,7 @@
     <h1 class="my-4">Generate Responses for {{ project.name }}</h1>
     
     <form method="POST" action="{{ url_for('main.start_assessment', project_id=project.id) }}">
+    <!--
         <div class="form-group mb-4">
             <label for="model_select">Select Model:</label>
             <select class="form-control" id="model_select" name="model_select">
@@ -24,6 +25,9 @@
                    value="0.5" step="0.1" min="0.`" max="0.7" required>
             <small class="form-text text-muted">Adjust the conciseness of the responses..  0.1 (more concise) to 0.7 (more verbose).</small>
         </div>
+    -->
+        <input type="hidden" name="model_select" value="claude-3-7-sonnet-20250219">
+        <input type="hidden" name="temperature" value="0.5">
 
         <!-- Document Selection Section -->
         <div class="card mb-4">

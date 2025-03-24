@@ -460,6 +460,29 @@
                                 <input type="text" class="form-control" id="wb_income_classification" name="wb_income_classification" value="{{ project.wb_income_classification }}">
                             </div>
                             <div class="form-group">
+                                <label for="corruption_quintile">Corruption Quintile</label>
+                                <select class="form-control" id="corruption_quintile" name="corruption_quintile">
+                                    <option value="" {% if not project.corruption_quintile %}selected{% endif %}>Select...</option>
+                                    <option value="20%" {% if project.corruption_quintile == '20%' %}selected{% endif %}>20% (Least corrupt)</option>
+                                    <option value="40%" {% if project.corruption_quintile == '40%' %}selected{% endif %}>40%</option>
+                                    <option value="60%" {% if project.corruption_quintile == '60%' %}selected{% endif %}>60%</option>
+                                    <option value="80%" {% if project.corruption_quintile == '80%' %}selected{% endif %}>80%</option>
+                                    <option value="100%" {% if project.corruption_quintile == '100%' %}selected{% endif %}>100% (Most corrupt)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cci">CCI (Control of Corruption Index)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="cci" 
+                                       name="cci" 
+                                       min="-2.5"
+                                       max="2.5"
+                                       step="0.01"
+                                       value="{{ '%.2f'|format(project.cci) if project.cci else '' }}">
+                                <small class="form-text text-muted">Value between -2.5 and 2.5</small>
+                            </div>
+                            <div class="form-group">
                                 <label for="government_type_eiu">Gov Type (EIU)</label>
                                 <input type="text" class="form-control" id="government_type_eiu" name="government_type_eiu" value="{{ project.government_type_eiu }}">
                             </div>
