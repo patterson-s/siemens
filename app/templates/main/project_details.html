@@ -463,11 +463,11 @@
                                 <label for="corruption_quintile">Corruption Quintile</label>
                                 <select class="form-control" id="corruption_quintile" name="corruption_quintile">
                                     <option value="" {% if not project.corruption_quintile %}selected{% endif %}>Select...</option>
-                                    <option value="20%" {% if project.corruption_quintile == '20%' %}selected{% endif %}>20% (Least corrupt)</option>
+                                    <option value="20%" {% if project.corruption_quintile == '20%' %}selected{% endif %}>20% (Most corrupt)</option>
                                     <option value="40%" {% if project.corruption_quintile == '40%' %}selected{% endif %}>40%</option>
                                     <option value="60%" {% if project.corruption_quintile == '60%' %}selected{% endif %}>60%</option>
                                     <option value="80%" {% if project.corruption_quintile == '80%' %}selected{% endif %}>80%</option>
-                                    <option value="100%" {% if project.corruption_quintile == '100%' %}selected{% endif %}>100% (Most corrupt)</option>
+                                    <option value="100%" {% if project.corruption_quintile == '100%' %}selected{% endif %}>100% (Least corrupt)</option>
                                 </select>
                             </div>
                             <div class="form-group">
