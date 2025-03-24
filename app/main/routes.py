@@ -436,10 +436,24 @@ def start_assessment(project_id):
             flash(f'Error starting assessment: {str(e)}', 'danger')
             return redirect(request.url)
     
-    return render_template('main/start_assessment.html',
-                         project=project,
-                         questions=questions,
-                         document_types=DOCUMENT_TYPES)
+    # Add this code to create a map of the latest responses
+    latest_responses = db.session.query(EvaluationResponse)\
+        .filter(EvaluationResponse.project_id == project_id)\
+        .order_by(EvaluationResponse.created_at.desc())\
+        .all()
+    
+    # Create a map of question_id to latest response
+    latest_responses_map = {}
+    for response in latest_responses:
+        if response.question_id not in latest_responses_map:
+            latest_responses_map[response.question_id] = response
+    
+    return render_template('main/start_assessment.html', 
+                           project=project, 
+                           questions=questions, 
+                           config=current_app.config,
+                           latest_responses=latest_responses,
+                           latest_responses_map=latest_responses_map)
 
 @bp.route('/projects/<int:project_id>/assessment/<int:evaluation_id>')
 @login_required

@@ -38,84 +38,84 @@
                 {% if project.documents %}
                     {# Original Proposal documents #}
                     <h6 class="text-muted mb-2">Original Proposals</h6>
-                    {% set has_proposals = false %}
-                    {% for document in project.documents %}
-                        {% if document.document_type.value == 'original_proposal' %}
-                            {% set has_proposals = true %}
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input document-checkbox" 
-                                       id="document_{{ document.id }}" 
-                                       name="selected_documents" 
-                                       value="{{ document.id }}"
-                                       checked>
-                                <label class="custom-control-label" for="document_{{ document.id }}">
-                                    <strong>{{ document.filename }}</strong>
-                                    <span class="text-muted">({{ document.document_type.value|string|replace('_', ' ')|title }})</span>
-                                    <small class="text-muted d-block">
-                                        Size: {{ "{:,}".format(document.file_size) }} words | 
-                                        Type: {{ document.file_type|upper }}
-                                    </small>
-                                </label>
-                            </div>
-                        {% endif %}
-                    {% endfor %}
-                    {% if not has_proposals %}
-                        <p class="text-muted">No original proposal documents available.</p>
-                    {% endif %}
+                    <div id="original-proposal-docs">
+                        {% set has_proposals = false %}
+                        {% for document in project.documents %}
+                            {% if document.document_type.value == 'original_proposal' %}
+                                {% set has_proposals = true %}
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input document-checkbox" 
+                                           id="document_{{ document.id }}" 
+                                           name="selected_documents" 
+                                           value="{{ document.id }}"
+                                           data-type="{{ document.document_type.value }}"
+                                           checked>
+                                    <label class="custom-control-label" for="document_{{ document.id }}">
+                                        <strong>{{ document.filename }}</strong>
+                                        <span class="text-muted">({{ document.document_type.value|string|replace('_', ' ')|title }})</span>
+                                        <small class="text-muted d-block">
+                                            Size: {{ "{:,}".format(document.file_size) }} words | 
+                                            Type: {{ document.file_type|upper }}
+                                        </small>
+                                    </label>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
 
                     {# Project Report documents #}
                     <h6 class="text-muted mt-3 mb-2">Final Project Reports</h6>
-                    {% set has_reports = false %}
-                    {% for document in project.documents %}
-                        {% if document.document_type.value == 'final_project_report' %}
-                            {% set has_reports = true %}
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input document-checkbox" 
-                                       id="document_{{ document.id }}" 
-                                       name="selected_documents" 
-                                       value="{{ document.id }}"
-                                       checked>
-                                <label class="custom-control-label" for="document_{{ document.id }}">
-                                    <strong>{{ document.filename }}</strong>
-                                    <span class="text-muted">({{ document.document_type.value|string|replace('_', ' ')|title }})</span>
-                                    <small class="text-muted d-block">
-                                        Size: {{ "{:,}".format(document.file_size) }} words | 
-                                        Type: {{ document.file_type|upper }}
-                                    </small>
-                                </label>
-                            </div>
-                        {% endif %}
-                    {% endfor %}
-                    {% if not has_reports %}
-                        <p class="text-muted">No final project report documents available.</p>
-                    {% endif %}
+                    <div id="final-project-report-docs">
+                        {% set has_reports = false %}
+                        {% for document in project.documents %}
+                            {% if document.document_type.value == 'final_project_report' %}
+                                {% set has_reports = true %}
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input document-checkbox" 
+                                           id="document_{{ document.id }}" 
+                                           name="selected_documents" 
+                                           value="{{ document.id }}"
+                                           data-type="{{ document.document_type.value }}"
+                                           checked>
+                                    <label class="custom-control-label" for="document_{{ document.id }}">
+                                        <strong>{{ document.filename }}</strong>
+                                        <span class="text-muted">({{ document.document_type.value|string|replace('_', ' ')|title }})</span>
+                                        <small class="text-muted d-block">
+                                            Size: {{ "{:,}".format(document.file_size) }} words | 
+                                            Type: {{ document.file_type|upper }}
+                                        </small>
+                                    </label>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
 
                     {# External Evaluation documents #}
                     <h6 class="text-muted mt-3 mb-2">External Evaluations</h6>
-                    {% set has_evaluations = false %}
-                    {% for document in project.documents %}
-                        {% if document.document_type.value == 'external_evaluation' %}
-                            {% set has_evaluations = true %}
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input document-checkbox" 
-                                       id="document_{{ document.id }}" 
-                                       name="selected_documents" 
-                                       value="{{ document.id }}"
-                                       checked>
-                                <label class="custom-control-label" for="document_{{ document.id }}">
-                                    <strong>{{ document.filename }}</strong>
-                                    <span class="text-muted">({{ document.document_type.value|string|replace('_', ' ')|title }})</span>
-                                    <small class="text-muted d-block">
-                                        Size: {{ "{:,}".format(document.file_size) }} words | 
-                                        Type: {{ document.file_type|upper }}
-                                    </small>
-                                </label>
-                            </div>
-                        {% endif %}
-                    {% endfor %}
-                    {% if not has_evaluations %}
-                        <p class="text-muted">No external evaluation documents available.</p>
-                    {% endif %}
+                    <div id="external-evaluation-docs">
+                        {% set has_evaluations = false %}
+                        {% for document in project.documents %}
+                            {% if document.document_type.value == 'external_evaluation' %}
+                                {% set has_evaluations = true %}
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input document-checkbox" 
+                                           id="document_{{ document.id }}" 
+                                           name="selected_documents" 
+                                           value="{{ document.id }}"
+                                           data-type="{{ document.document_type.value }}"
+                                           checked>
+                                    <label class="custom-control-label" for="document_{{ document.id }}">
+                                        <strong>{{ document.filename }}</strong>
+                                        <span class="text-muted">({{ document.document_type.value|string|replace('_', ' ')|title }})</span>
+                                        <small class="text-muted d-block">
+                                            Size: {{ "{:,}".format(document.file_size) }} words | 
+                                            Type: {{ document.file_type|upper }}
+                                        </small>
+                                    </label>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
                 {% else %}
                     <div class="alert alert-warning">
                         No documents available. Please upload documents before starting an assessment.
@@ -134,17 +134,30 @@
             </div>
             <div class="card-body">
                 {% for question in questions|sort(attribute='order') %}
-                <div class="custom-control custom-checkbox mb-3">
-                    <input type="checkbox" class="custom-control-input question-checkbox" 
-                           id="question_{{ question.id }}" 
-                           name="selected_questions" 
-                           value="{{ question.id }}"
-                           checked>
-                    <label class="custom-control-label" for="question_{{ question.id }}">
-                        <strong>{{ question.name }}</strong>
-                        <p class="text-muted mb-0">{{ question.question }}</p>
-                    </label>
-                </div>
+                    {% set is_reviewed = false %}
+                    
+                    {# Check if this question has a reviewed response in the latest assessment #}
+                    {% if latest_responses and question.id in latest_responses_map and latest_responses_map[question.id].reviewed %}
+                        {% set is_reviewed = true %}
+                    {% endif %}
+                    
+                    <div class="custom-control custom-checkbox mb-3">
+                        <input type="checkbox" class="custom-control-input question-checkbox" 
+                               id="question_{{ question.id }}" 
+                               name="selected_questions" 
+                               value="{{ question.id }}"
+                               {% if is_reviewed %}disabled{% else %}checked{% endif %}>
+                        <label class="custom-control-label {% if is_reviewed %}text-muted{% endif %}" 
+                               for="question_{{ question.id }}">
+                            <strong>{{ question.name }}</strong>
+                            {% if is_reviewed %}
+                                <span class="badge badge-secondary ml-2">Locked/Reviewed</span>
+                            {% endif %}
+                            <p class="{% if is_reviewed %}text-muted{% endif %} mb-0">
+                                {{ question.question }}
+                            </p>
+                        </label>
+                    </div>
                 {% endfor %}
             </div>
         </div>
@@ -166,7 +179,10 @@
         document.getElementById('selectAllQuestions').addEventListener('change', function() {
             const checkboxes = document.getElementsByClassName('question-checkbox');
             for (let checkbox of checkboxes) {
-                checkbox.checked = this.checked;
+                // Only change state of checkboxes that aren't disabled
+                if (!checkbox.disabled) {
+                    checkbox.checked = this.checked;
+                }
             }
         });
 
@@ -178,11 +194,46 @@
                 selectAllDocs.checked = Array.from(allDocs).every(cb => cb.checked);
             }
             if (e.target.classList.contains('question-checkbox')) {
-                const allQuestions = document.getElementsByClassName('question-checkbox');
+                const allQuestions = document.querySelectorAll('.question-checkbox:not([disabled])');
                 const selectAllQuestions = document.getElementById('selectAllQuestions');
                 selectAllQuestions.checked = Array.from(allQuestions).every(cb => cb.checked);
             }
         });
+
+        // Check "Select All" state on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // For questions, only consider non-disabled checkboxes
+            const enabledQuestions = document.querySelectorAll('.question-checkbox:not([disabled])');
+            const selectAllQuestions = document.getElementById('selectAllQuestions');
+            selectAllQuestions.checked = enabledQuestions.length > 0 && 
+                                         Array.from(enabledQuestions).every(cb => cb.checked);
+            
+            // For documents
+            const allDocs = document.getElementsByClassName('document-checkbox');
+            const selectAllDocs = document.getElementById('selectAllDocs');
+            selectAllDocs.checked = allDocs.length > 0 && Array.from(allDocs).every(cb => cb.checked);
+
+            // Check each document section
+            checkDocumentSection('original-proposal-docs', 'Original Proposals');
+            checkDocumentSection('final-project-report-docs', 'Final Project Reports');
+            checkDocumentSection('external-evaluation-docs', 'External Evaluations');
+        });
+
+        function checkDocumentSection(sectionId, displayName) {
+            const section = document.getElementById(sectionId);
+            
+            // If section exists but has no checkboxes
+            if (section && !section.querySelector('.custom-control-checkbox')) {
+                // Check if section is empty
+                if (section.children.length === 0) {
+                    // Add the "No documents available" message
+                    const message = document.createElement('p');
+                    message.className = 'text-muted';
+                    message.textContent = `No ${displayName.toLowerCase()} available.`;
+                    section.appendChild(message);
+                }
+            }
+        }
 
         // Update the checkStatus function
         function checkStatus() {
