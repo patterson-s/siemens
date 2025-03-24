@@ -427,8 +427,26 @@
                                        value="{{ '%.2f'|format(project.funding_amount_usd) if project.funding_amount_usd else '' }}">
                             </div>
                             <div class="form-group">
-                                <label for="duration">Duration</label>
-                                <input type="text" class="form-control" id="duration" name="duration" value="{{ project.duration }}">
+                                <label for="start_year">Start Year</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="start_year" 
+                                       name="start_year" 
+                                       step="1"
+                                       min="1900"
+                                       max="2100"
+                                       value="{{ project.start_year|int if project.start_year else '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label for="end_year">End Year</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="end_year" 
+                                       name="end_year" 
+                                       step="1"
+                                       min="1900"
+                                       max="2100"
+                                       value="{{ project.end_year|int if project.end_year else '' }}">
                             </div>
                             <div class="form-group">
                                 <label for="wb_income_classification">WB Income Class</label>

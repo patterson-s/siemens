@@ -121,31 +121,28 @@
 <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap4.min.js"></script>
 <script>
     $(document).ready(function() {
-        const table = $('#projectTable').DataTable({
-            scrollX: true,
-            scrollY: '80vh',
-            scrollCollapse: true,
-            paging: false,
-            fixedHeader: true,
-            order: [[1, 'asc'], [2, 'asc']], // Already correctly set for Round (col 1) and File # (col 2)
+        var table = $('#projectTable').DataTable({
+            responsive: true,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+            order: [[1, 'asc'], [2, 'asc']], // Sort by Round (col 1) and then File# (col 2)
             dom: 'Bfrtip',
             buttons: [
                 {
                     extend: 'csv',
+                    text: 'Export CSV',
+                    className: 'btn btn-sm btn-outline-secondary',
                     exportOptions: {
-                        order: 'applied' // This will maintain the same sorting as the table
+                        columns: ':visible',
+                        order: 'applied' // Maintain the current sort order
                     }
                 },
                 {
                     extend: 'excel',
+                    text: 'Export Excel',
+                    className: 'btn btn-sm btn-outline-secondary',
                     exportOptions: {
-                        order: 'applied' // This will maintain the same sorting as the table
-                    }
-                },
-                {
-                    extend: 'copy',
-                    exportOptions: {
-                        order: 'applied'
+                        columns: ':visible',
+                        order: 'applied' // Maintain the current sort order
                     }
                 }
             ],
@@ -157,6 +154,9 @@
                 });
             }
         });
+        
+        // Optional: if you want to make sure these columns are used for sorting on initial load
+        table.order([1, 'asc'], [2, 'asc']).draw();
 
         // Add click handler for rows
         $('#projectTable tbody').on('click', 'tr', function() {

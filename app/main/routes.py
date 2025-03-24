@@ -1155,47 +1155,39 @@ def update_notes(project_id):
 def update_project(project_id):
     project = Project.query.get_or_404(project_id)
     
-    try:
-        # Update existing fields
-        project.name_of_round = float(request.form.get('name_of_round'))
-        project.file_number_db = request.form.get('file_number_db')
-        project.scope = request.form.get('scope')
-        project.region = request.form.get('region')
-        project.countries_covered = request.form.get('countries_covered')
-        project.integrity_partner_name = request.form.get('integrity_partner_name')
-        project.partner_type = request.form.get('partner_type')
-        project.project_partners = request.form.get('project_partners')
-        project.wb_or_eib = request.form.get('wb_or_eib')
+    # Update project with form data - only include fields actually in the project details form
+    for field in request.form:
+        # Text fields
+        if field in ['name', 'scope', 'region', 'countries_covered', 'integrity_partner_name',
+                    'partner_type', 'project_partners', 'wb_or_eib', 'key_project_objectives',
+                    'sectoral_scope', 'specific_sector', 'duration', 'wb_income_classification',
+                    'government_type_eiu', 'notes', 'other', 'corruption_quintile']:
+            setattr(project, field, request.form[field])
         
-        # Add missing fields
-        project.key_project_objectives = request.form.get('key_project_objectives')
-        project.sectoral_scope = request.form.get('sectoral_scope')
-        project.specific_sector = request.form.get('specific_sector')
-        project.funding_amount_usd = float(request.form.get('funding_amount_usd')) if request.form.get('funding_amount_usd') else None
-        project.duration = request.form.get('duration')
-        project.start_year = int(request.form.get('start_year')) if request.form.get('start_year') else None
-        project.end_year = int(request.form.get('end_year')) if request.form.get('end_year') else None
-        project.wb_income_classification = request.form.get('wb_income_classification')
-        project.corruption_quintile = request.form.get('corruption_quintile')
-        project.cci = float(request.form.get('cci')) if request.form.get('cci') else None
-        project.government_type_eiu = request.form.get('government_type_eiu')
-        project.government_score_eiu = float(request.form.get('government_score_eiu')) if request.form.get('government_score_eiu') else None
+        # Integer fields
+        elif field in ['start_year', 'end_year']:
+            value = request.form[field]
+            if value:
+                setattr(project, field, int(value))
+            else:
+                setattr(project, field, None)
         
-        # Handle checkboxes
-        project.final_external_evaluation = 'final_external_evaluation' in request.form
-        project.final_report = 'final_report' in request.form
-        project.full_proposal = 'full_proposal' in request.form
-        project.workplan = 'workplan' in request.form
-        project.baseline_assessment = 'baseline_assessment' in request.form
-        
-        # Handle optional other field
-        project.other = request.form.get('other')
-
-        db.session.commit()
-        return jsonify({'success': True})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}) 
+        # Numeric fields (float/decimal) - only those in the details form
+        elif field in ['name_of_round', 'file_number_db', 'funding_amount_usd', 
+                      'government_score_eiu', 'cci']:
+            value = request.form[field]
+            if value:
+                setattr(project, field, float(value))
+            else:
+                setattr(project, field, None)
+    
+    # Calculate duration string based on start and end years if both are provided
+    if project.start_year and project.end_year:
+        project.duration = f"{project.end_year - project.start_year + 1} years ({project.start_year}-{project.end_year})"
+    
+    db.session.commit()
+    
+    return jsonify({'success': True})
 
 @bp.route('/test-prompt', methods=['GET', 'POST'])
 @login_required
@@ -1258,40 +1250,39 @@ def update_response(response_id):
 def update_project_metrics(project_id):
     project = Project.query.get_or_404(project_id)
     
-    try:
-        # Update numeric counts - using type=float to allow decimal values
-        project.num_pubpri_dialogues = request.form.get('num_pubpri_dialogues', type=float)
-        project.num_legal_contribuntions = request.form.get('num_legal_contribuntions', type=float)
-        project.num_implement_mechanisms = request.form.get('num_implement_mechanisms', type=float)
-        project.num_voluntary_standards = request.form.get('num_voluntary_standards', type=float)
-        project.num_voluntary_signatories = request.form.get('num_voluntary_signatories', type=float)
-        project.num_organizations_supported = request.form.get('num_organizations_supported', type=float)
-        project.num_new_courses = request.form.get('num_new_courses', type=float)
-        project.num_individ_trained = request.form.get('num_individ_trained', type=float)
-        project.num_training_activities = request.form.get('num_training_activities', type=float)
-        project.num_organizaed_events = request.form.get('num_organizaed_events', type=float)
-        project.num_event_attendees = request.form.get('num_event_attendees', type=float)
-        project.num_publications = request.form.get('num_publications', type=float)
+    # Update project metrics - only include fields actually in the metrics form
+    for field in request.form:
+        # Numeric count fields
+        if field in ['num_pubpri_dialogues', 'num_legal_contribuntions', 
+                    'num_implement_mechanisms', 'num_voluntary_standards', 
+                    'num_voluntary_signatories', 'num_organizations_supported',
+                    'num_new_courses', 'num_individ_trained', 'num_training_activities',
+                    'num_organizaed_events', 'num_event_attendees', 'num_publications']:
+            value = request.form[field]
+            if value:
+                setattr(project, field, float(value))
+            else:
+                setattr(project, field, None)
         
-        # Update ratings
-        project.rate_output_achieved = request.form.get('rate_output_achieved', type=float)
-        project.rate_impact_evidence = request.form.get('rate_impact_evidence')  # String value
-        project.rate_sustainability = request.form.get('rate_sustainability', type=float)
-        project.rate_project_design = request.form.get('rate_project_design', type=float)
-        project.rate_project_management = request.form.get('rate_project_management')  # String value
-        project.rate_quality_evaluation = request.form.get('rate_quality_evaluation')  # String value
-        project.rate_impact_progress = request.form.get('rate_impact_progress', type=float)
-        
-        # Update significance ratings
-        project.rate_signif_frameworks = request.form.get('rate_signif_frameworks')
-        project.rate_signif_practices = request.form.get('rate_signif_practices')
-        project.rate_signif_capacity = request.form.get('rate_signif_capacity')
-        
-        db.session.commit()
-        return jsonify({'success': True})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}) 
+        # Rating fields (can be integers or strings)
+        elif field in ['rate_output_achieved', 'rate_impact_evidence', 'rate_sustainability', 
+                      'rate_project_design', 'rate_project_management', 'rate_quality_evaluation',
+                      'rate_impact_progress', 'rate_signif_frameworks', 'rate_signif_practices', 
+                      'rate_signif_capacity']:
+            value = request.form[field]
+            if value:
+                # Convert to appropriate type based on the field
+                if field in ['rate_output_achieved', 'rate_sustainability', 
+                           'rate_project_design', 'rate_impact_progress']:
+                    setattr(project, field, int(float(value)) if value else None)
+                else:
+                    setattr(project, field, value)
+            else:
+                setattr(project, field, None)
+    
+    db.session.commit()
+    
+    return jsonify({'success': True}) 
 
 @bp.route('/projects/document/<int:document_id>/preview')
 @login_required
