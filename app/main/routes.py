@@ -58,41 +58,61 @@ DOCUMENT_TYPES = [
 @bp.route('/index')
 @login_required
 def index():
-    # Get counts for dashboard
-    total_projects = Project.query.count()
-    total_documents = Document.query.count()
+    projects = Project.query.filter_by(active=True).all()
     
-    # Get all projects for calculations
-    all_projects = Project.query.all()
+    # Define the helper functions inside the route to avoid naming issues
+    def has_all_responses(project):
+        """Check if a project has all evaluation responses generated"""
+        questions = ProjectQuestion.query.all()
+        responses = EvaluationResponse.query.filter_by(project_id=project.id).all()
+        return len(responses) == len(questions)
     
-    # Count projects with at least one response
-    projects_with_responses = db.session.query(Project.id).join(
-        EvaluationResponse, Project.id == EvaluationResponse.project_id
-    ).distinct().count()
+    def has_all_reviewed_responses(project):
+        """Check if all responses for a project have been reviewed"""
+        questions = ProjectQuestion.query.all()
+        reviewed_responses = EvaluationResponse.query.filter_by(
+            project_id=project.id,
+            reviewed=True
+        ).all()
+        return len(reviewed_responses) == len(questions)
     
-    # Count projects with at least one document
-    projects_with_docs = db.session.query(Project.id).join(
-        Document, Project.id == Document.project_id
-    ).distinct().count()
+    def has_all_scores(project):
+        scoring_fields = [
+            project.num_pubpri_dialogues,
+            project.num_legal_contribuntions,
+            project.num_implement_mechanisms,
+            project.num_voluntary_standards,
+            project.num_voluntary_signatories,
+            project.num_organizations_supported,
+            project.num_new_courses,
+            project.num_individ_trained,
+            project.num_training_activities,
+            project.num_organizaed_events,
+            project.num_event_attendees,
+            project.num_publications,
+            project.rate_output_achieved,
+            project.rate_impact_evidence,
+            project.rate_sustainability,
+            project.rate_project_design,
+            project.rate_project_management,
+            project.rate_quality_evaluation,
+            project.rate_signif_frameworks,
+            project.rate_signif_practices,
+            project.rate_signif_capacity
+        ]
+        return all(field is not None for field in scoring_fields)
     
-    # Count projects with ALL responses GENERATED
-    projects_with_all_responses = get_projects_with_all_responses()
+    projects_with_docs = sum(1 for p in projects if p.documents)
+    projects_with_all_responses = sum(1 for p in projects if has_all_responses(p))
+    projects_with_all_reviewed = sum(1 for p in projects if has_all_reviewed_responses(p))
+    projects_with_all_scores = sum(1 for p in projects if has_all_scores(p))
     
-    # Count projects with ALL responses REVIEWED
-    projects_with_all_reviewed = get_projects_with_all_reviewed()
-    
-    # Get recent projects
-    recent_projects = Project.query.order_by(Project.id.desc()).limit(5).all()
-    
-    return render_template('main/index.html',
-                          total_projects=total_projects,
-                          total_documents=total_documents,
-                          projects_with_responses=projects_with_responses,
-                          projects_with_all_responses=projects_with_all_responses,
-                          projects_with_all_reviewed=projects_with_all_reviewed,
-                          projects_with_docs=projects_with_docs,
-                          projects=all_projects,
-                          recent_projects=recent_projects)
+    return render_template('main/index.html', 
+                         projects=projects,
+                         projects_with_docs=projects_with_docs,
+                         projects_with_all_responses=projects_with_all_responses,
+                         projects_with_all_reviewed=projects_with_all_reviewed,
+                         projects_with_all_scores=projects_with_all_scores)
 
 @bp.route('/projects')
 @login_required
@@ -1253,39 +1273,68 @@ def update_response(response_id):
 def update_project_metrics(project_id):
     project = Project.query.get_or_404(project_id)
     
-    # Update project metrics - only include fields actually in the metrics form
-    for field in request.form:
-        # Numeric count fields
-        if field in ['num_pubpri_dialogues', 'num_legal_contribuntions', 
-                    'num_implement_mechanisms', 'num_voluntary_standards', 
-                    'num_voluntary_signatories', 'num_organizations_supported',
-                    'num_new_courses', 'num_individ_trained', 'num_training_activities',
-                    'num_organizaed_events', 'num_event_attendees', 'num_publications']:
-            value = request.form[field]
-            if value:
-                setattr(project, field, float(value))
-            else:
-                setattr(project, field, None)
+    # Get form data
+    try:
+        # Update numeric fields, ensuring decimal values are preserved
+        if request.form.get('num_pubpri_dialogues'):
+            project.num_pubpri_dialogues = int(request.form.get('num_pubpri_dialogues'))
+            
+        if request.form.get('num_legal_contribuntions'):
+            project.num_legal_contribuntions = int(request.form.get('num_legal_contribuntions'))
+            
+        if request.form.get('num_implement_mechanisms'):
+            project.num_implement_mechanisms = int(request.form.get('num_implement_mechanisms'))
+            
+        if request.form.get('num_voluntary_standards'):
+            project.num_voluntary_standards = int(request.form.get('num_voluntary_standards'))
+            
+        if request.form.get('num_voluntary_signatories'):
+            project.num_voluntary_signatories = int(request.form.get('num_voluntary_signatories'))
+            
+        if request.form.get('num_organizations_supported'):
+            project.num_organizations_supported = int(request.form.get('num_organizations_supported'))
+            
+        if request.form.get('num_new_courses'):
+            project.num_new_courses = int(request.form.get('num_new_courses'))
+            
+        if request.form.get('num_individ_trained'):
+            project.num_individ_trained = int(request.form.get('num_individ_trained'))
+            
+        if request.form.get('num_training_activities'):
+            project.num_training_activities = int(request.form.get('num_training_activities'))
+            
+        if request.form.get('num_organizaed_events'):
+            project.num_organizaed_events = int(request.form.get('num_organizaed_events'))
+            
+        if request.form.get('num_event_attendees'):
+            project.num_event_attendees = int(request.form.get('num_event_attendees'))
+            
+        if request.form.get('num_publications'):
+            project.num_publications = int(request.form.get('num_publications'))
         
-        # Rating fields (can be integers or strings)
-        elif field in ['rate_output_achieved', 'rate_impact_evidence', 'rate_sustainability', 
-                      'rate_project_design', 'rate_project_management', 'rate_quality_evaluation',
-                      'rate_impact_progress', 'rate_signif_frameworks', 'rate_signif_practices', 
-                      'rate_signif_capacity']:
-            value = request.form[field]
-            if value:
-                # Convert to appropriate type based on the field
-                if field in ['rate_output_achieved', 'rate_sustainability', 
-                           'rate_project_design', 'rate_impact_progress']:
-                    setattr(project, field, int(float(value)) if value else None)
-                else:
-                    setattr(project, field, value)
-            else:
-                setattr(project, field, None)
-    
-    db.session.commit()
-    
-    return jsonify({'success': True}) 
+        # The following fields should be stored as floats to preserve decimal values
+        if request.form.get('rate_output_achieved'):
+            project.rate_output_achieved = float(request.form.get('rate_output_achieved'))
+            
+        if request.form.get('rate_sustainability'):
+            project.rate_sustainability = float(request.form.get('rate_sustainability'))
+            
+        if request.form.get('rate_project_design'):
+            project.rate_project_design = float(request.form.get('rate_project_design'))
+        
+        # These are string fields
+        project.rate_impact_evidence = request.form.get('rate_impact_evidence', '')
+        project.rate_project_management = request.form.get('rate_project_management', '')
+        project.rate_quality_evaluation = request.form.get('rate_quality_evaluation', '')
+        project.rate_signif_frameworks = request.form.get('rate_signif_frameworks', '')
+        project.rate_signif_practices = request.form.get('rate_signif_practices', '')
+        project.rate_signif_capacity = request.form.get('rate_signif_capacity', '')
+        
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)})
 
 @bp.route('/projects/document/<int:document_id>/preview')
 @login_required

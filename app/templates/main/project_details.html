@@ -213,18 +213,18 @@
         <div class="col-md-4">
             <!-- Toggle buttons -->
             <div class="btn-group mb-3 w-100" role="group">
-                <button type="button" class="btn custom-teal" id="showDetails" 
-                        style="background-color: #1abc9c !important; border-color: #1abc9c !important; color: white !important;">
+                <button type="button" class="btn btn-outline-teal" id="showDetails" 
+                        style="color: #1abc9c !important; border: 1px solid #1abc9c !important; background-color: white !important;">
                     Project Details
                 </button>
-                <button type="button" class="btn btn-outline-teal" id="showMetrics" 
-                        style="color: #1abc9c !important; border: 1px solid #1abc9c !important; background-color: white !important;">
+                <button type="button" class="btn custom-teal" id="showMetrics" 
+                        style="background-color: #1abc9c !important; border-color: #1abc9c !important; color: white !important;">
                     Project Scoring
                 </button>
             </div>
 
             <!-- Project Details Table -->
-            <div class="card mb-3" id="detailsCard">
+            <div class="card mb-3" id="detailsCard" style="display: none;">
                 <div class="card-body">
                     <h5 class="card-title">Project Details</h5>
                     
@@ -511,7 +511,7 @@
             </div>
 
             <!-- Project Metrics Form -->
-            <div class="card mb-3" id="metricsCard" style="display: none; background-color: rgba(23, 162, 184, 0.03);">
+            <div class="card mb-3" id="metricsCard" style="background-color: rgba(23, 162, 184, 0.03);">
                 <div class="card-body">
                     <h5 class="card-title">Project Scoring</h5>
                     <form id="metricsForm" action="{{ url_for('main.update_project_metrics', project_id=project.id) }}" method="POST">
@@ -1075,6 +1075,12 @@ $(document).ready(function() {
         $('#metricsCard').show();
     });
 
+    // Initial state - Metrics shown by default
+    $('#detailsCard').hide();
+    $('#metricsCard').show();
+    $('#showMetrics').addClass('custom-teal').removeClass('btn-outline-teal');
+    $('#showDetails').removeClass('custom-teal').addClass('btn-outline-teal');
+    
     // Handle collapse toggle and chevron rotation
     $('.btn[data-toggle="collapse"]').on('click', function(e) {
         // Remove Bootstrap's data-toggle attribute after the first initialization

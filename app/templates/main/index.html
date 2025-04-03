@@ -2,37 +2,47 @@
 
 {% block content %}
     <div class="jumbotron bg-white">
-        <h1 class="display-4">SII AI Assessment Tool</h1>
-        <p class="lead">An AI-powered tool for evaluating Integrity Initiative project documentation.</p>
-        <hr class="my-4">
-        <p>View projects list to generate or review AI responses.</p>
-        <div class="mt-4">
-            <a class="btn btn-primary btn-lg mr-2" href="/projects" role="button">View Projects</a>
+        <!-- Header section with just the text - now left-aligned -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="display-4">SII AI Assessment Tool</h1>
+                <p class="lead">An AI-powered tool for evaluating Integrity Initiative project documentation.</p>
+                <hr class="my-4">
+            </div>
         </div>
-    </div>
-
-    <div class="row">
-        <!-- Total Projects card (Blue) -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Total Projects in Database</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ projects|length }}</div>
-                            <a href="{{ url_for('main.project_table') }}" class="small text-primary">View full table <i class="fas fa-external-link-alt"></i></a>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-folder fa-2x text-gray-300"></i>
+        
+        <!-- Projects card and button section -->
+        <div class="row align-items-center mb-4">
+            <!-- Total Projects card -->
+            <div class="col-md-4">
+                <div class="card border-left-primary shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                    Total Projects in Database</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ projects|length }}</div>
+                                <a href="{{ url_for('main.project_table') }}" class="small text-primary">View full table <i class="fas fa-external-link-alt"></i></a>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-folder fa-2x text-gray-300"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+            <div class="col-md-8">
+                <p>View projects list to generate or review AI responses.</p>
+                <div class="mt-4">
+                    <a class="btn btn-primary btn-lg mr-2" href="/projects" role="button">View Projects</a>
+                </div>
+            </div>
         </div>
+    </div>
 
+    <div class="row">
         <!-- Projects with Documents Uploaded card (Green) -->
-        <div class="col-xl-3 col-md-6 mb-4">
+        <div class="col-xl col-md-6 mb-4">
             <div class="card border-left-success shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
@@ -42,7 +52,7 @@
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{ projects_with_docs }}/{{ projects|length }}</div>
                             <div class="progress progress-sm mt-2">
                                 <div class="progress-bar bg-success" role="progressbar" 
-                                    style="width: {{ (projects_with_docs / projects|length * 100)|round }}%">
+                                    style="width: {{ (projects_with_docs / projects|length * 100)|round if projects|length > 0 else 0 }}%">
                                 </div>
                             </div>
                         </div>
@@ -55,7 +65,7 @@
         </div>
 
         <!-- Projects with ALL responses GENERATED card (Light Blue) -->
-        <div class="col-xl-3 col-md-6 mb-4">
+        <div class="col-xl col-md-6 mb-4">
             <div class="card border-left-info shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
@@ -65,7 +75,7 @@
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{ projects_with_all_responses }}/{{ projects|length }}</div>
                             <div class="progress progress-sm mt-2">
                                 <div class="progress-bar bg-info" role="progressbar" 
-                                    style="width: {{ (projects_with_all_responses / projects|length * 100)|round }}%">
+                                    style="width: {{ (projects_with_all_responses / projects|length * 100)|round if projects|length > 0 else 0 }}%">
                                 </div>
                             </div>
                         </div>
@@ -78,7 +88,7 @@
         </div>
 
         <!-- Projects with ALL responses REVIEWED card (Yellow) -->
-        <div class="col-xl-3 col-md-6 mb-4">
+        <div class="col-xl col-md-6 mb-4">
             <div class="card border-left-warning shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
@@ -88,12 +98,35 @@
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{ projects_with_all_reviewed }}/{{ projects|length }}</div>
                             <div class="progress progress-sm mt-2">
                                 <div class="progress-bar bg-warning" role="progressbar" 
-                                    style="width: {{ (projects_with_all_reviewed / projects|length * 100)|round }}%">
+                                    style="width: {{ (projects_with_all_reviewed / projects|length * 100)|round if projects|length > 0 else 0 }}%">
                                 </div>
                             </div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-check-double fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- New card: Projects with ALL Scores Recorded (Purple) -->
+        <div class="col-xl col-md-6 mb-4">
+            <div class="card border-left-purple shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-purple text-uppercase mb-1">
+                                Projects with ALL Scores Recorded</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ projects_with_all_scores }}/{{ projects|length }}</div>
+                            <div class="progress progress-sm mt-2">
+                                <div class="progress-bar bg-purple" role="progressbar" 
+                                    style="width: {{ (projects_with_all_scores / projects|length * 100)|round if projects|length > 0 else 0 }}%">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-bar fa-2x text-gray-300"></i>
                         </div>
                     </div>
                 </div>
@@ -113,6 +146,15 @@
         }
         .border-left-warning {
             border-left: 4px solid #f6c23e !important;
+        }
+        .border-left-purple {
+            border-left: 4px solid #6f42c1 !important;
+        }
+        .text-purple {
+            color: #6f42c1 !important;
+        }
+        .bg-purple {
+            background-color: #6f42c1 !important;
         }
         .text-xs {
             font-size: .7rem;
