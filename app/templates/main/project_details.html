@@ -529,7 +529,7 @@
                                        name="num_pubpri_dialogues" 
                                        step="1"
                                        min="0"
-                                       value="{{ project.num_pubpri_dialogues|int if project.num_pubpri_dialogues else '' }}">
+                                       value="{{ project.num_pubpri_dialogues|int if project.num_pubpri_dialogues is not none else 0 }}">
                             </div>
                         </div>
                         <div class="form-group row mb-2">
@@ -541,7 +541,7 @@
                                        name="num_legal_contribuntions"
                                        step="1"
                                        min="0"
-                                       value="{{ project.num_legal_contribuntions|int if project.num_legal_contribuntions else '' }}">
+                                       value="{{ project.num_legal_contribuntions|int if project.num_legal_contribuntions is not none else 0 }}">
                             </div>
                         </div>
                         <div class="form-group row mb-2">
@@ -553,7 +553,7 @@
                                        name="num_implement_mechanisms"
                                        step="1"
                                        min="0"
-                                       value="{{ project.num_implement_mechanisms|int if project.num_implement_mechanisms else '' }}">
+                                       value="{{ project.num_implement_mechanisms|int if project.num_implement_mechanisms is not none else 0 }}">
                             </div>
                         </div>
                         <div class="form-group row mb-2">
@@ -565,7 +565,7 @@
                                        name="num_voluntary_standards"
                                        step="1"
                                        min="0"
-                                       value="{{ project.num_voluntary_standards|int if project.num_voluntary_standards else '' }}">
+                                       value="{{ project.num_voluntary_standards|int if project.num_voluntary_standards is not none else 0 }}">
                             </div>
                         </div>
                         <div class="form-group row mb-2">
@@ -577,7 +577,7 @@
                                        name="num_voluntary_signatories"
                                        step="1"
                                        min="0"
-                                       value="{{ project.num_voluntary_signatories|int if project.num_voluntary_signatories else '' }}">
+                                       value="{{ project.num_voluntary_signatories|int if project.num_voluntary_signatories is not none else 0 }}">
                             </div>
                         </div>
                         <div class="form-group row mb-2">
@@ -589,7 +589,7 @@
                                        name="num_organizations_supported"
                                        step="1"
                                        min="0"
-                                       value="{{ project.num_organizations_supported|int if project.num_organizations_supported else '' }}">
+                                       value="{{ project.num_organizations_supported|int if project.num_organizations_supported is not none else 0 }}">
                             </div>
                         </div>
 
@@ -604,7 +604,7 @@
                                        name="num_new_courses"
                                        step="1"
                                        min="0"
-                                       value="{{ project.num_new_courses|int if project.num_new_courses else '' }}">
+                                       value="{{ project.num_new_courses|int if project.num_new_courses is not none else 0 }}">
                             </div>
                         </div>
 
@@ -617,7 +617,7 @@
                                        name="num_individ_trained"
                                        step="1"
                                        min="0"
-                                       value="{{ project.num_individ_trained|int if project.num_individ_trained else '' }}">
+                                       value="{{ project.num_individ_trained|int if project.num_individ_trained is not none else 0 }}">
                             </div>
                         </div>
 
@@ -630,7 +630,7 @@
                                        name="num_training_activities"
                                        step="1"
                                        min="0"
-                                       value="{{ project.num_training_activities|int if project.num_training_activities else '' }}">
+                                       value="{{ project.num_training_activities|int if project.num_training_activities is not none else 0 }}">
                             </div>
                         </div>
 
@@ -643,7 +643,7 @@
                                        name="num_organizaed_events"
                                        step="1"
                                        min="0"
-                                       value="{{ project.num_organizaed_events|int if project.num_organizaed_events else '' }}">
+                                       value="{{ project.num_organizaed_events|int if project.num_organizaed_events is not none else 0 }}">
                             </div>
                         </div>
 
@@ -656,7 +656,7 @@
                                        name="num_event_attendees"
                                        step="1"
                                        min="0"
-                                       value="{{ project.num_event_attendees|int if project.num_event_attendees else '' }}">
+                                       value="{{ project.num_event_attendees|int if project.num_event_attendees is not none else 0 }}">
                             </div>
                         </div>
 
@@ -669,7 +669,7 @@
                                        name="num_publications"
                                        step="1"
                                        min="0"
-                                       value="{{ project.num_publications|int if project.num_publications else '' }}">
+                                       value="{{ project.num_publications|int if project.num_publications is not none else 0 }}">
                             </div>
                         </div>
 
@@ -722,7 +722,7 @@
                         <div class="form-group mb-3">
                             <label for="rate_project_design" class="d-block mb-2 metrics-label">Project Design Rating:</label>
                             <select class="form-control" id="rate_project_design" name="rate_project_design">
-                                <option value="" {% if not project.rate_project_design %}selected{% endif %}>Select...</option>
+                                <option value="" {% if project.rate_project_design is none %}selected{% endif %}>Select...</option>
                                 <option value="4" {% if project.rate_project_design == 4 %}selected{% endif %}>4</option>
                                 <option value="3.5" {% if project.rate_project_design == 3.5 %}selected{% endif %}>3.5</option>
                                 <option value="3" {% if project.rate_project_design == 3 %}selected{% endif %}>3</option>
@@ -730,6 +730,7 @@
                                 <option value="2" {% if project.rate_project_design == 2 %}selected{% endif %}>2</option>
                                 <option value="1.5" {% if project.rate_project_design == 1.5 %}selected{% endif %}>1.5</option>
                                 <option value="1" {% if project.rate_project_design == 1 %}selected{% endif %}>1</option>
+                                <option value="0" {% if project.rate_project_design == 0 %}selected{% endif %}>0</option>
                             </select>
                         </div>
 

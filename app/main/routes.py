@@ -107,11 +107,11 @@ def index():
     projects_with_all_reviewed = sum(1 for p in projects if has_all_reviewed_responses(p))
     projects_with_all_scores = sum(1 for p in projects if has_all_scores(p))
     
-    return render_template('main/index.html', 
+    return render_template('main/index.html',
                          projects=projects,
                          projects_with_docs=projects_with_docs,
-                         projects_with_all_responses=projects_with_all_responses,
-                         projects_with_all_reviewed=projects_with_all_reviewed,
+                          projects_with_all_responses=projects_with_all_responses,
+                          projects_with_all_reviewed=projects_with_all_reviewed,
                          projects_with_all_scores=projects_with_all_scores)
 
 @bp.route('/projects')
@@ -515,9 +515,9 @@ def start_assessment(project_id):
            response.created_at > question_responses[response.question_id].created_at:
             question_responses[response.question_id] = response
     
-    return render_template('main/start_assessment.html', 
-                           project=project, 
-                           questions=questions, 
+    return render_template('main/start_assessment.html',
+                         project=project,
+                         questions=questions,
                            config=current_app.config,
                            question_responses=question_responses)
 
@@ -1111,9 +1111,9 @@ def ai_agent():
             .all()
 
         return render_template('main/ai_agent.html',
-                              response=output,  # Pass the output to the template
-                              chat_history=messages,
-                              current_session=chat_session,
+                               response=output,  # Pass the output to the template
+                               chat_history=messages,
+                               current_session=chat_session,
                               all_sessions=ChatSession.query.order_by(ChatSession.created_at.desc()).all(),
                               questions=all_questions,
                               selected_questions=selected_questions)
@@ -1124,9 +1124,9 @@ def ai_agent():
         .all()
 
     return render_template('main/ai_agent.html',
-                          response=None,
-                          chat_history=messages,
-                          current_session=chat_session,
+                           response=None,
+                           chat_history=messages,
+                           current_session=chat_session,
                           all_sessions=ChatSession.query.order_by(ChatSession.created_at.desc()).all(),
                           questions=all_questions,
                           selected_questions=[])
@@ -1253,10 +1253,10 @@ def update_project(project_id):
         # For example: 2015-2018 = 3 years (not 4)
         years = project.end_year - project.start_year
         project.duration = f"{years} years ({project.start_year}-{project.end_year})"
+
+        db.session.commit()
     
-    db.session.commit()
-    
-    return jsonify({'success': True})
+        return jsonify({'success': True})
 
 @bp.route('/test-prompt', methods=['GET', 'POST'])
 @login_required
@@ -1321,50 +1321,38 @@ def update_project_metrics(project_id):
     
     # Get form data
     try:
-        # Update numeric fields, ensuring decimal values are preserved
-        if request.form.get('num_pubpri_dialogues'):
-            project.num_pubpri_dialogues = int(request.form.get('num_pubpri_dialogues'))
-            
-        if request.form.get('num_legal_contribuntions'):
-            project.num_legal_contribuntions = int(request.form.get('num_legal_contribuntions'))
-            
-        if request.form.get('num_implement_mechanisms'):
-            project.num_implement_mechanisms = int(request.form.get('num_implement_mechanisms'))
-            
-        if request.form.get('num_voluntary_standards'):
-            project.num_voluntary_standards = int(request.form.get('num_voluntary_standards'))
-            
-        if request.form.get('num_voluntary_signatories'):
-            project.num_voluntary_signatories = int(request.form.get('num_voluntary_signatories'))
-            
-        if request.form.get('num_organizations_supported'):
-            project.num_organizations_supported = int(request.form.get('num_organizations_supported'))
-            
-        if request.form.get('num_new_courses'):
-            project.num_new_courses = int(request.form.get('num_new_courses'))
-            
-        if request.form.get('num_individ_trained'):
-            project.num_individ_trained = int(request.form.get('num_individ_trained'))
-            
-        if request.form.get('num_training_activities'):
-            project.num_training_activities = int(request.form.get('num_training_activities'))
-            
-        if request.form.get('num_organizaed_events'):
-            project.num_organizaed_events = int(request.form.get('num_organizaed_events'))
-            
-        if request.form.get('num_event_attendees'):
-            project.num_event_attendees = int(request.form.get('num_event_attendees'))
-            
-        if request.form.get('num_publications'):
-            project.num_publications = int(request.form.get('num_publications'))
+        # Update numeric count fields - set blank values to 0 instead of null
+        integer_fields = [
+            'num_pubpri_dialogues',
+            'num_legal_contribuntions',
+            'num_implement_mechanisms',
+            'num_voluntary_standards',
+            'num_voluntary_signatories',
+            'num_organizations_supported',
+            'num_new_courses',
+            'num_individ_trained',
+            'num_training_activities',
+            'num_organizaed_events',
+            'num_event_attendees',
+            'num_publications'
+        ]
+        
+        # Process integer fields - convert blank to 0
+        for field in integer_fields:
+            value = request.form.get(field, '').strip()
+            if value == '':
+                setattr(project, field, 0)  # Set to 0 instead of null
+            elif value:
+                setattr(project, field, int(value))
         
         # The following fields should be stored as floats to preserve decimal values
+        # For these fields, we keep blank values as null since they are ratings
         if request.form.get('rate_output_achieved'):
             project.rate_output_achieved = float(request.form.get('rate_output_achieved'))
-            
+        
         if request.form.get('rate_sustainability'):
             project.rate_sustainability = float(request.form.get('rate_sustainability'))
-            
+        
         if request.form.get('rate_project_design'):
             project.rate_project_design = float(request.form.get('rate_project_design'))
         
