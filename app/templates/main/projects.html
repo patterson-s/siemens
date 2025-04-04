@@ -39,12 +39,12 @@
                             <th>Round</th>
                             <th>File #</th>
                             <th>Partner</th>
-                            <th>Partner Type</th>
                             <th>Region</th>
                             <th>Countries</th>
                             <th>Documents Uploaded</th>
                             <th>Responses Generated</th>
                             <th>Responses Reviewed</th>
+                            <th>Scores Recorded</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -72,7 +72,6 @@
                                     {% endif %}
                                 </td>
                                 <td><strong>{{ project.integrity_partner_name }}</strong></td>
-                                <td>{{ project.partner_type }}</td>
                                 <td>{{ project.region }}</td>
                                 <td>{{ project.countries_covered }}</td>
                                 <td>
@@ -100,6 +99,11 @@
                                 <td>
                                     <span class="badge {% if response_counts.get(project.id, (0,0))[0] == 0 %}badge-outline-info{% elif response_counts.get(project.id, (0,0))[1] == response_counts.get(project.id, (0,0))[0] %}badge-success{% elif response_counts.get(project.id, (0,0))[1] > 0 %}badge-info{% else %}badge-outline-info{% endif %}">
                                         {{ response_counts.get(project.id, (0,0))[1] }}/{{ response_counts.get(project.id, (0,0))[0] }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge {% if scoring_stats.get(project.id, 0) == 0 %}badge-outline-info{% elif scoring_stats.get(project.id, 0) == total_scores %}badge-success{% elif scoring_stats.get(project.id, 0) > 0 %}badge-info{% else %}badge-outline-info{% endif %}">
+                                        {{ scoring_stats.get(project.id, 0) }}/{{ total_scores }}
                                     </span>
                                 </td>
                                 <td class="text-right">

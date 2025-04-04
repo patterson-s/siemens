@@ -122,6 +122,9 @@ def projects():
 
     # Get total number of questions
     total_questions = ProjectQuestion.query.count()
+    
+    # Define total number of scoring fields
+    total_scores = 21  # This is the number of scoring fields in the Project model
 
     # Subquery to get the most recent response for each question per project
     latest_responses = db.session.query(
@@ -148,6 +151,47 @@ def projects():
     ).group_by(
         EvaluationResponse.project_id
     ).subquery()
+
+    # Calculate scoring stats for each project - improved logic to exclude blank/empty values
+    scoring_stats = {}
+    for project in Project.query.all():
+        # Count fields that have meaningful values (not None and not empty strings)
+        scoring_fields = [
+            project.num_pubpri_dialogues,
+            project.num_legal_contribuntions,
+            project.num_implement_mechanisms,
+            project.num_voluntary_standards,
+            project.num_voluntary_signatories,
+            project.num_organizations_supported,
+            project.num_new_courses,
+            project.num_individ_trained,
+            project.num_training_activities,
+            project.num_organizaed_events,
+            project.num_event_attendees,
+            project.num_publications,
+            project.rate_output_achieved,
+            project.rate_impact_evidence,
+            project.rate_sustainability,
+            project.rate_project_design,
+            project.rate_project_management,
+            project.rate_quality_evaluation,
+            project.rate_signif_frameworks,
+            project.rate_signif_practices,
+            project.rate_signif_capacity
+        ]
+        # Improved counting logic to handle both None and empty string values
+        scores_recorded = 0
+        for field in scoring_fields:
+            # Check if field has a meaningful value
+            if field is not None:
+                # For string fields, check if they're not empty
+                if isinstance(field, str) and not field.strip():
+                    continue
+                # For numeric fields with zero value, we should still count them
+                # since zero is a valid meaningful value for numeric fields
+                scores_recorded += 1
+        
+        scoring_stats[project.id] = scores_recorded
 
     # Query only active projects from the database
     active_projects = Project.query.filter_by(active=True).outerjoin(
@@ -185,7 +229,9 @@ def projects():
     return render_template('main/projects.html', 
                          projects=active_projects,
                          total_questions=total_questions,
+                         total_scores=total_scores,
                          response_counts=stats_dict,
+                         scoring_stats=scoring_stats,
                          title='Projects - ' + Config.APP_NAME)
 
 @bp.route('/questions')
