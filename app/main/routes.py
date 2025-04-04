@@ -60,23 +60,18 @@ DOCUMENT_TYPES = [
 def index():
     projects = Project.query.filter_by(active=True).all()
     
-    # Define the helper functions inside the route to avoid naming issues
-    def has_all_responses(project):
-        """Check if a project has all evaluation responses generated"""
-        questions = ProjectQuestion.query.all()
-        responses = EvaluationResponse.query.filter_by(project_id=project.id).all()
-        return len(responses) == len(questions)
+    # Use the improved implementations from helper functions
+    projects_with_docs = sum(1 for p in projects if p.documents)
     
-    def has_all_reviewed_responses(project):
-        """Check if all responses for a project have been reviewed"""
-        questions = ProjectQuestion.query.all()
-        reviewed_responses = EvaluationResponse.query.filter_by(
-            project_id=project.id,
-            reviewed=True
-        ).all()
-        return len(reviewed_responses) == len(questions)
+    # Get count of projects with all responses generated using the helper function
+    projects_with_all_responses = get_projects_with_all_responses()
     
-    def has_all_scores(project):
+    # Use the helper function for projects with all reviewed responses
+    projects_with_all_reviewed = get_projects_with_all_reviewed()
+    
+    # Count projects with all scores recorded with improved validation
+    projects_with_all_scores = 0
+    for project in projects:
         scoring_fields = [
             project.num_pubpri_dialogues,
             project.num_legal_contribuntions,
@@ -100,18 +95,22 @@ def index():
             project.rate_signif_practices,
             project.rate_signif_capacity
         ]
-        return all(field is not None for field in scoring_fields)
-    
-    projects_with_docs = sum(1 for p in projects if p.documents)
-    projects_with_all_responses = sum(1 for p in projects if has_all_responses(p))
-    projects_with_all_reviewed = sum(1 for p in projects if has_all_reviewed_responses(p))
-    projects_with_all_scores = sum(1 for p in projects if has_all_scores(p))
+        # Use the improved validation
+        all_scores_valid = True
+        for field in scoring_fields:
+            # Field is invalid if it's None or an empty string
+            if field is None or (isinstance(field, str) and not field.strip()):
+                all_scores_valid = False
+                break
+        
+        if all_scores_valid:
+            projects_with_all_scores += 1
     
     return render_template('main/index.html',
                          projects=projects,
                          projects_with_docs=projects_with_docs,
-                          projects_with_all_responses=projects_with_all_responses,
-                          projects_with_all_reviewed=projects_with_all_reviewed,
+                         projects_with_all_responses=projects_with_all_responses,
+                         projects_with_all_reviewed=projects_with_all_reviewed,
                          projects_with_all_scores=projects_with_all_scores)
 
 @bp.route('/projects')
