@@ -613,11 +613,10 @@ def run_evaluation(project_id, evaluation_id, selected_questions, temperature, s
             # Get selected documents with their types
             documents = Document.query.filter(Document.id.in_(selected_docs)).all()
             
-            # Build context from documents with more structured format for citations
+            # Build context from documents with caching instruction
             document_contexts = []
-            formatted_documents = []
             for doc in documents:
-                # Convert the Enum to string before using replace()
+                # Fix: Convert the Enum to string before using replace()
                 if hasattr(doc.document_type, 'value'):
                     # If it's an Enum with a value attribute
                     doc_type = str(doc.document_type.value)
@@ -630,20 +629,10 @@ def run_evaluation(project_id, evaluation_id, selected_questions, temperature, s
                 
                 formatted_type = doc_type.replace('_', ' ').title()
                 
-                # Add document with source information for citations
-                formatted_documents.append({
-                    "type": "document",
-                    "source": {
-                        "type": "text",
-                        "media_type": "text/plain",
-                        "data": doc.get_content()
-                    },
-                    "title": f"{formatted_type}: {doc.filename}",
-                    "context": f"This is a {formatted_type} document for the project.",
-                    "citations": {"enabled": True}
-                })
+                doc_context = f"\n=== {formatted_type}: {doc.filename} ===\n{doc.get_content()}\n"
+                document_contexts.append(doc_context)
             
-            if not formatted_documents:
+            if not document_contexts:
                 raise ValueError("No readable document content found")
 
             # Combine all document contexts with instruction
@@ -691,14 +680,15 @@ def run_evaluation(project_id, evaluation_id, selected_questions, temperature, s
                     db.session.add(api_log)
                     db.session.commit()
                     
-                    # Create user message content with citation instruction
-                    user_message_content = [
-                        # First include all formatted documents with citation enabled
-                        *formatted_documents,
-                        # Then add the text instruction with citation requirements
-                        {
-                            "type": "text",
-                            "text": f"""
+                    # Call Claude API
+                    response = client.messages.create(
+                        model=evaluation.model_used,
+                        temperature=temperature,
+                        max_tokens=4000,
+                        system=system,
+                        messages=[{
+                            "role": "user",
+                            "content": f"""
 Project Context:
 Project Name: {project.name}
 Project Objectives: {project.key_project_objectives}
@@ -706,22 +696,7 @@ Project Objectives: {project.key_project_objectives}
 Question: {question.question}
 Detailed Instructions: {question.prompt}
 
-IMPORTANT: When providing your analysis, always use citations to reference specific parts of the documents. For every claim or fact you state, include a citation referencing the specific document. Use exact quotes when possible, and indicate which document you're citing from. Include page numbers or section references if available.
-
-Please provide your analysis based on the available documents.
-"""
-                        }
-                    ]
-                    
-                    # Call Claude API with citations enabled
-                    response = client.messages.create(
-                        model=evaluation.model_used,
-                        temperature=temperature,
-                        max_tokens=4000,
-                        system=Config.DEFAULT_SYSTEM_PROMPT,
-                        messages=[{
-                            "role": "user",
-                            "content": user_message_content
+Please provide your analysis based on the available documents."""
                         }]
                     )
                     
