@@ -111,8 +111,8 @@
                                 <div class="collapse" id="response{{ response.id }}">
                                     <div class="card card-body mt-2 border-left border-teal">
                                         <!-- Response text container -->
-                                        <div id="responseText{{ response.id }}" class="response-text">
-                                            {{ response.response_text|nl2br|safe }}
+                                        <div id="responseText{{ response.id }}" class="response-text markdown-content">
+                                            {{ response.response_text|markdown|safe }}
                                         </div>
                                         
                                         <!-- Edit form (hidden by default) -->

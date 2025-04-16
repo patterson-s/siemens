@@ -24,7 +24,7 @@
         <div class="card-body">
             <h5 class="card-title">{{ response.question.name }}</h5>
             <h6 class="card-subtitle mb-3 text-muted">Question: {{ response.question.question }}</h6>
-            <div class="response-text">{{ response.response_text | nl2br | safe }}</div>
+            <div class="response-text markdown-content">{{ response.response_text | markdown | safe }}</div>
         </div>
     </div>
     {% endfor %}

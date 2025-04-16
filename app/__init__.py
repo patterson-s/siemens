@@ -2,6 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from config import Config
+import markdown
 from flask_migrate import Migrate
 import os
 
@@ -30,6 +31,13 @@ def create_app(config_class=Config):
     @app.template_filter('nl2br')
     def nl2br(value):
         return value.replace('\n', '<br>\n') if value else ''
+
+    # Add template filter for markdown
+    @app.template_filter('markdown')
+    def markdown_filter(value):
+        if not value:
+            return ''
+        return markdown.markdown(value, extensions=['extra', 'fenced_code', 'tables'])
 
     # Initialize extensions with app
     db.init_app(app)
