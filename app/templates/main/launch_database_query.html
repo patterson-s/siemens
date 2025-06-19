@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2>{{ query.title }}</h2>
+            <p class="text-muted">{{ query.description }}</p>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Filter Builder</h5>
+                </div>
+                <div class="card-body">
+                    <form id="query-form" method="POST" action="{{ url_for('main.execute_database_query', query_id=query.id) }}">
+                        <div id="filter-container">
+                            <!-- Filters will be added here -->
+                        </div>
+                        <button type="button" class="btn btn-outline-primary mt-3" id="add-filter">
+                            <i class="fas fa-plus"></i> Add Filter
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Add project count section -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Selected Projects</h5>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-primary me-2" id="project-count">0</span>
+                            <span>projects match your filters</span>
+                        </div>
+                    </div>
+                    <div id="project-list-container" class="mt-3">
+                        <ul class="list-group" id="project-list"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Data Source</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        {% for question in selected_questions %}
+                        <li class="list-group-item">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="selected_questions" value="{{ question.id }}" id="question_{{ question.id }}" checked>
+                                <label class="form-check-label" for="question_{{ question.id }}">
+                                    {{ question.name }}
+                                </label>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Results</h5>
+                    <button type="button" class="btn btn-outline-primary" id="export-results" style="display: none;">
+                        <i class="fas fa-download"></i> Export Results
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="results-container" style="display: none;">
+                        <div id="loading" class="text-center" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <div id="results-content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter template -->
+<template id="filter-template">
+    <div class="filter-item mb-3 p-3 border rounded">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <select class="form-select field-select" name="fields[]" required>
+                    <option value="">Select Field</option>
+                    {% for field in available_fields %}
+                    <option value="{{ field.name }}" data-type="{{ field.type }}">{{ field.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select operator-select" name="operators[]" required>
+                    <option value="">Select Operator</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <div class="condition-container">
+                    <!-- Condition inputs will be dynamically added here -->
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-outline-danger remove-filter">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterContainer = document.getElementById('filter-container');
+    const filterTemplate = document.getElementById('filter-template');
+    const addFilterBtn = document.getElementById('add-filter');
+    const queryForm = document.getElementById('query-form');
+    const resultsContainer = document.getElementById('results-container');
+    const resultsContent = document.getElementById('results-content');
+    const loadingIndicator = document.getElementById('loading');
+    const exportBtn = document.getElementById('export-results');
+    const projectCount = document.getElementById('project-count');
+
+    // Define operators for different field types
+    const operators = {
+        text: [
+            { value: '=', label: 'Equals' },
+            { value: '!=', label: 'Not Equals' },
+            { value: 'LIKE', label: 'Contains' },
+            { value: 'NOT LIKE', label: 'Does Not Contain' },
+            { value: 'IN', label: 'In List' }
+        ],
+        numeric: [
+            { value: '=', label: 'Equals' },
+            { value: '!=', label: 'Not Equals' },
+            { value: '>', label: 'Greater Than' },
+            { value: '>=', label: 'Greater Than or Equal' },
+            { value: '<', label: 'Less Than' },
+            { value: '<=', label: 'Less Than or Equal' },
+            { value: 'BETWEEN', label: 'Between' }
+        ],
+        boolean: [
+            { value: '=', label: 'Is' }
+        ]
+    };
+
+    // Function to update project count
+    function updateProjectCount() {
+        const formData = new FormData(queryForm);
+        formData.append('count_only', 'true');
+
+        fetch(`{{ url_for('main.execute_database_query', query_id=query.id) }}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            projectCount.textContent = data.count;
+            // Update the project list
+            const projectList = document.getElementById('project-list');
+            projectList.innerHTML = '';
+            if (data.projects && data.projects.length > 0) {
+                data.projects.forEach(project => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item';
+                    li.innerHTML = `<strong>${project.name}</strong> <span class='text-muted'>(File #: ${project.file_number}, Region: ${project.region}, Partner: ${project.partner})</span>`;
+                    projectList.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.className = 'list-group-item text-muted';
+                li.textContent = 'No projects match your filters.';
+                projectList.appendChild(li);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating count:', error);
+        });
+    }
+
+    // Function to add a new filter
+    function addFilter() {
+        const filterClone = filterTemplate.content.cloneNode(true);
+        const filterItem = filterClone.querySelector('.filter-item');
+        
+        // Add event listeners for the new filter
+        const fieldSelect = filterItem.querySelector('.field-select');
+        const operatorSelect = filterItem.querySelector('.operator-select');
+        const removeBtn = filterItem.querySelector('.remove-filter');
+        
+        fieldSelect.addEventListener('change', function() {
+            updateOperators(this);
+            updateConditionInputs(this);
+            updateProjectCount();
+        });
+        
+        operatorSelect.addEventListener('change', function() {
+            updateConditionInputs(fieldSelect);
+            updateProjectCount();
+        });
+        
+        removeBtn.addEventListener('click', function() {
+            filterItem.remove();
+            updateProjectCount();
+        });
+        
+        filterContainer.appendChild(filterItem);
+    }
+
+    // Function to update operators based on field type
+    function updateOperators(fieldSelect) {
+        const operatorSelect = fieldSelect.closest('.filter-item').querySelector('.operator-select');
+        const fieldType = fieldSelect.options[fieldSelect.selectedIndex].dataset.type;
+        const fieldOperators = operators[fieldType] || [];
+        
+        operatorSelect.innerHTML = '<option value="">Select Operator</option>';
+        fieldOperators.forEach(op => {
+            const option = document.createElement('option');
+            option.value = op.value;
+            option.textContent = op.label;
+            operatorSelect.appendChild(option);
+        });
+    }
+
+    // Function to update condition inputs based on field type and operator
+    function updateConditionInputs(fieldSelect) {
+        const filterItem = fieldSelect.closest('.filter-item');
+        const operatorSelect = filterItem.querySelector('.operator-select');
+        const conditionContainer = filterItem.querySelector('.condition-container');
+        const fieldType = fieldSelect.options[fieldSelect.selectedIndex].dataset.type;
+        const operator = operatorSelect.value;
+        
+        conditionContainer.innerHTML = '';
+        
+        if (!fieldType || !operator) return;
+        
+        if (operator === 'BETWEEN') {
+            // Add two inputs for range
+            const input1 = document.createElement('input');
+            input1.type = fieldType === 'numeric' ? 'number' : 'text';
+            input1.className = 'form-control';
+            input1.name = 'conditions[]';
+            input1.placeholder = 'Min';
+            input1.required = true;
+            
+            const input2 = document.createElement('input');
+            input2.type = fieldType === 'numeric' ? 'number' : 'text';
+            input2.className = 'form-control mt-2';
+            input2.name = 'conditions[]';
+            input2.placeholder = 'Max';
+            input2.required = true;
+            
+            conditionContainer.appendChild(input1);
+            conditionContainer.appendChild(input2);
+        } else if (operator === 'IN') {
+            // Add textarea for list of values
+            const textarea = document.createElement('textarea');
+            textarea.className = 'form-control';
+            textarea.name = 'conditions[]';
+            textarea.placeholder = 'Enter values separated by commas';
+            textarea.required = true;
+            conditionContainer.appendChild(textarea);
+        } else if (fieldType === 'boolean') {
+            // Add select for boolean values
+            const select = document.createElement('select');
+            select.className = 'form-select';
+            select.name = 'conditions[]';
+            select.required = true;
+            
+            const options = [
+                { value: 'true', label: 'True' },
+                { value: 'false', label: 'False' }
+            ];
+            
+            options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.label;
+                select.appendChild(option);
+            });
+            
+            conditionContainer.appendChild(select);
+        } else {
+            // Add single input for other cases
+            const input = document.createElement('input');
+            input.type = fieldType === 'numeric' ? 'number' : 'text';
+            input.className = 'form-control';
+            input.name = 'conditions[]';
+            input.required = true;
+            conditionContainer.appendChild(input);
+        }
+    }
+
+    // Add event listeners
+    addFilterBtn.addEventListener('click', addFilter);
+    
+    queryForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        loadingIndicator.style.display = 'block';
+        resultsContainer.style.display = 'block';
+        resultsContent.innerHTML = '';
+        exportBtn.style.display = 'none';
+        
+        fetch(this.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            loadingIndicator.style.display = 'none';
+            if (data.error) {
+                resultsContent.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+            } else {
+                resultsContent.innerHTML = data.html;
+                exportBtn.style.display = 'inline-block';
+            }
+        })
+        .catch(error => {
+            loadingIndicator.style.display = 'none';
+            resultsContent.innerHTML = '<div class="alert alert-danger">An error occurred while executing the query.</div>';
+        });
+    });
+
+    // Add event listener for export button
+    exportBtn.addEventListener('click', function() {
+        const formData = new FormData(queryForm);
+        formData.append('export', 'true');
+        
+        fetch(queryForm.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'query_results.csv';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+        })
+        .catch(error => {
+            console.error('Error exporting results:', error);
+        });
+    });
+
+    // Add event listeners for question checkboxes
+    document.querySelectorAll('input[name="selected_questions"]').forEach(checkbox => {
+        checkbox.addEventListener('change', updateProjectCount);
+    });
+
+    // Initial count update
+    updateProjectCount();
+});
+</script>
+{% endblock %} 

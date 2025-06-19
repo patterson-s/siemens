@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Add New Database Query</h2>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('main.add_synthesis_question') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="prompt" class="form-label">Prompt</label>
+                            <textarea class="form-control" id="prompt" name="prompt" rows="4" required></textarea>
+                        </div>
+                        
+                        <!-- Question Selection Section -->
+                        <div class="mb-3">
+                            <label class="form-label">Select Question Responses to Include</label>
+                            <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;" id="questions-container">
+                                {% for question in questions %}
+                                <div class="form-check mb-2 question-item" data-id="{{ question.id }}">
+                                    <input class="form-check-input question-checkbox" type="checkbox" 
+                                           name="question_ids" value="{{ question.id }}" 
+                                           id="question-{{ question.id }}">
+                                    <label class="form-check-label" for="question-{{ question.id }}">
+                                        {{ question.name }} - {{ question.question }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('main.synthesis_questions') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Add Query</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.question-item {
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+}
+
+.question-item:hover {
+    background-color: #f8f9fa;
+}
+
+.question-item.checked {
+    background-color: #e8f4f8;
+}
+
+.question-item.checked:hover {
+    background-color: #d8e4e8;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('questions-container');
+    const questionItems = document.querySelectorAll('.question-item');
+    const checkboxes = document.querySelectorAll('.question-checkbox');
+
+    // Add hover effect and click handling
+    questionItems.forEach(item => {
+        const checkbox = item.querySelector('.question-checkbox');
+        
+        // Handle checkbox change
+        checkbox.addEventListener('change', function() {
+            // Update the item's checked class
+            item.classList.toggle('checked', this.checked);
+            
+            // Reorder items
+            const checkedItems = Array.from(questionItems).filter(item => 
+                item.querySelector('.question-checkbox').checked
+            );
+            const uncheckedItems = Array.from(questionItems).filter(item => 
+                !item.querySelector('.question-checkbox').checked
+            );
+            
+            // Clear container
+            container.innerHTML = '';
+            
+            // Add checked items first, then unchecked items
+            [...checkedItems, ...uncheckedItems].forEach(item => {
+                container.appendChild(item);
+            });
+        });
+
+        // Make the entire item clickable
+        item.addEventListener('click', function(e) {
+            if (e.target !== checkbox) {
+                checkbox.checked = !checkbox.checked;
+                checkbox.dispatchEvent(new Event('change'));
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

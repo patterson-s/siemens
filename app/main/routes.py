@@ -1,6 +1,6 @@
-from flask import render_template, redirect, url_for, request, flash, send_from_directory, jsonify, session, current_app, send_file
+from flask import render_template, redirect, url_for, request, flash, send_from_directory, jsonify, session, current_app, send_file, Response
 from app.main import bp
-from app.models.models import Project, ProjectQuestion, Document, EvaluationRun, EvaluationResponse, EvaluationStatus, APILog, ChatSession, ChatMessage, DocumentType, Interview, InterviewQuestion  # Import InterviewQuestion
+from app.models.models import Project, ProjectQuestion, Document, EvaluationRun, EvaluationResponse, EvaluationStatus, APILog, ChatSession, ChatMessage, DocumentType, Interview, InterviewQuestion, DatabaseQuery  # Update import
 from app import db  # Import the db instance
 import os
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
@@ -11,7 +11,7 @@ import time
 from datetime import datetime, timedelta  # Add timedelta to the import
 from werkzeug.utils import secure_filename
 from docx import Document as DocxDocument
-from io import BytesIO
+from io import BytesIO, StringIO
 from flask_login import login_required, current_user
 from app.auth.decorators import admin_required
 from sqlalchemy import desc, func, text, distinct, case, and_
@@ -37,6 +37,7 @@ import json  # Import the json module
 import re  # Import re for regular expressions
 import io
 import csv
+from decimal import Decimal
 
 try:
     import xlsxwriter
@@ -684,7 +685,7 @@ def run_evaluation(project_id, evaluation_id, selected_questions, temperature, s
                     response = client.messages.create(
                         model=evaluation.model_used,
                         temperature=temperature,
-                        max_tokens=4000,
+                        max_tokens=16000,
                         system=system,
                         messages=[{
                             "role": "user",
@@ -692,6 +693,9 @@ def run_evaluation(project_id, evaluation_id, selected_questions, temperature, s
 Project Context:
 Project Name: {project.name}
 Project Objectives: {project.key_project_objectives}
+Countries:  {project.countries_covered} 
+Country Corruption Control Index: {project.cci} 
+Country Government Type: {project.government_type_eiu}
 
 Question: {question.question}
 Detailed Instructions: {question.prompt}
@@ -916,7 +920,7 @@ def ai_agent():
             model="claude-3-5-sonnet-20241022",
             anthropic_api_key=Config.CLAUDE_API_KEY,
             temperature=0.3,  
-            max_tokens=4000
+            max_tokens=8000
         )
 
         # Create the toolkit with both db and llm
@@ -1812,4 +1816,353 @@ def unmark_response_reviewed(response_id):
     response.reviewed = False
     db.session.commit()
     return jsonify({'success': True})
+
+@bp.route('/synthesis-questions')
+@login_required
+@admin_required
+def synthesis_questions():
+    questions = DatabaseQuery.query.order_by(DatabaseQuery.display_order).all()
+    return render_template('main/database_queries.html', 
+                         questions=questions,
+                         csrf_token=generate_csrf())
+
+@bp.route('/synthesis-questions/add', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def add_synthesis_question():
+    if request.method == 'POST':
+        title = request.form.get('title')
+        prompt = request.form.get('prompt')
+        question_ids = request.form.getlist('question_ids')  # Get list of selected question IDs
+        
+        if not title or not prompt:
+            flash('Title and prompt are required', 'error')
+            return redirect(url_for('main.synthesis_questions'))
+        
+        # Get the highest order number
+        max_order = db.session.query(func.max(DatabaseQuery.display_order)).scalar() or 0
+        
+        # Convert question_ids to integers
+        question_ids = [int(qid) for qid in question_ids] if question_ids else None
+        
+        question = DatabaseQuery(
+            title=title,
+            prompt=prompt,
+            display_order=max_order + 1,
+            question_ids=question_ids
+        )
+        
+        db.session.add(question)
+        db.session.commit()
+        
+        flash('Query added successfully', 'success')
+        return redirect(url_for('main.synthesis_questions'))
+    
+    # Get all questions for the form
+    questions = ProjectQuestion.query.order_by(ProjectQuestion.order).all()
+    return render_template('main/add_database_query.html', 
+                         questions=questions,
+                         csrf_token=generate_csrf())
+
+@bp.route('/synthesis-questions/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_synthesis_question(id):
+    question = DatabaseQuery.query.get_or_404(id)
+
+    if request.method == 'POST':
+        title = request.form.get('title')
+        prompt = request.form.get('prompt')
+        question_ids = request.form.getlist('question_ids')
+        question_ids = [int(qid) for qid in question_ids] if question_ids else None
+
+        if not title or not prompt:
+            flash('Title and prompt are required', 'error')
+            return redirect(url_for('main.synthesis_questions'))
+
+        question.title = title
+        question.prompt = prompt
+        question.question_ids = question_ids
+
+        db.session.commit()
+
+        flash('Query updated successfully', 'success')
+        return redirect(url_for('main.synthesis_questions'))
+
+    # Fetch all available questions for the selection list
+    questions = ProjectQuestion.query.order_by(ProjectQuestion.order).all()
+    return render_template(
+        'main/edit_database_query.html',
+        question=question,
+        questions=questions,
+        csrf_token=generate_csrf()
+    )
+
+@bp.route('/synthesis-questions/<int:id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_synthesis_question(id):
+    question = DatabaseQuery.query.get_or_404(id)
+    
+    # Get all questions with higher order
+    higher_questions = DatabaseQuery.query.filter(
+        DatabaseQuery.display_order > question.display_order
+    ).all()
+    
+    # Decrease their order by 1
+    for q in higher_questions:
+        q.display_order -= 1
+    
+    db.session.delete(question)
+    db.session.commit()
+    
+    flash('Query deleted successfully', 'success')
+    return redirect(url_for('main.synthesis_questions'))
+
+@bp.route('/synthesis-questions/update-order', methods=['POST'])
+@login_required
+@admin_required
+def update_synthesis_question_order():
+    data = request.get_json()
+    items = data.get('items', [])
+    
+    for item in items:
+        question = DatabaseQuery.query.get(item['id'])
+        if question:
+            question.display_order = item['order']
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+@bp.route('/synthesis-questions/<int:query_id>/launch', methods=['GET'])
+@login_required
+def launch_database_query(query_id):
+    query = DatabaseQuery.query.get_or_404(query_id)
+    
+    # Get the selected questions
+    selected_questions = ProjectQuestion.query.filter(
+        ProjectQuestion.id.in_(query.question_ids)
+    ).order_by(ProjectQuestion.order).all() if query.question_ids else []
+    
+    # Define available fields for filtering
+    available_fields = [
+        {'name': 'name_of_round', 'label': 'Round', 'type': 'numeric'},
+        {'name': 'name', 'label': 'Project Name', 'type': 'text'},
+        {'name': 'file_number_db', 'label': 'File Number', 'type': 'numeric'},
+        {'name': 'scope', 'label': 'Scope', 'type': 'text'},
+        {'name': 'region', 'label': 'Region', 'type': 'text'},
+        {'name': 'countries_covered', 'label': 'Countries', 'type': 'text'},
+        {'name': 'integrity_partner_name', 'label': 'Partner Name', 'type': 'text'},
+        {'name': 'partner_type', 'label': 'Partner Type', 'type': 'text'},
+        {'name': 'wb_or_eib', 'label': 'WB/EIB', 'type': 'text'},
+        {'name': 'sectoral_scope', 'label': 'Sectoral Scope', 'type': 'text'},
+        {'name': 'specific_sector', 'label': 'Specific Sector', 'type': 'text'},
+        {'name': 'funding_amount_usd', 'label': 'Funding (USD M)', 'type': 'numeric'},
+        {'name': 'start_year', 'label': 'Start Year', 'type': 'numeric'},
+        {'name': 'end_year', 'label': 'End Year', 'type': 'numeric'},
+        {'name': 'wb_income_classification', 'label': 'WB Income Class', 'type': 'text'},
+        {'name': 'corruption_quintile', 'label': 'Corruption Quintile', 'type': 'text'},
+        {'name': 'cci', 'label': 'CCI', 'type': 'numeric'},
+        {'name': 'government_type_eiu', 'label': 'Gov Type (EIU)', 'type': 'text'},
+        {'name': 'government_score_eiu', 'label': 'Gov Score (EIU)', 'type': 'numeric'},
+        {'name': 'active', 'label': 'Active Status', 'type': 'boolean'}
+    ]
+    
+    return render_template('main/launch_database_query.html',
+                         query=query,
+                         selected_questions=selected_questions,
+                         available_fields=available_fields,
+                         csrf_token=generate_csrf())
+
+@bp.route('/synthesis-questions/<int:query_id>/execute', methods=['POST'])
+@login_required
+def execute_database_query(query_id):
+    # Define available fields for filtering (must match frontend)
+    available_fields = [
+        {'name': 'name_of_round', 'label': 'Round', 'type': 'numeric'},
+        {'name': 'name', 'label': 'Project Name', 'type': 'text'},
+        {'name': 'file_number_db', 'label': 'File Number', 'type': 'numeric'},
+        {'name': 'scope', 'label': 'Scope', 'type': 'text'},
+        {'name': 'region', 'label': 'Region', 'type': 'text'},
+        {'name': 'countries_covered', 'label': 'Countries', 'type': 'text'},
+        {'name': 'integrity_partner_name', 'label': 'Partner Name', 'type': 'text'},
+        {'name': 'partner_type', 'label': 'Partner Type', 'type': 'text'},
+        {'name': 'wb_or_eib', 'label': 'WB/EIB', 'type': 'text'},
+        {'name': 'sectoral_scope', 'label': 'Sectoral Scope', 'type': 'text'},
+        {'name': 'specific_sector', 'label': 'Specific Sector', 'type': 'text'},
+        {'name': 'funding_amount_usd', 'label': 'Funding (USD M)', 'type': 'numeric'},
+        {'name': 'start_year', 'label': 'Start Year', 'type': 'numeric'},
+        {'name': 'end_year', 'label': 'End Year', 'type': 'numeric'},
+        {'name': 'wb_income_classification', 'label': 'WB Income Class', 'type': 'text'},
+        {'name': 'corruption_quintile', 'label': 'Corruption Quintile', 'type': 'text'},
+        {'name': 'cci', 'label': 'CCI', 'type': 'numeric'},
+        {'name': 'government_type_eiu', 'label': 'Gov Type (EIU)', 'type': 'text'},
+        {'name': 'government_score_eiu', 'label': 'Gov Score (EIU)', 'type': 'numeric'},
+        {'name': 'active', 'label': 'Active Status', 'type': 'boolean'}
+    ]
+    try:
+        query = DatabaseQuery.query.get_or_404(query_id)
+        
+        # Get selected questions
+        selected_question_ids = request.form.getlist('selected_questions')
+        selected_questions = ProjectQuestion.query.filter(ProjectQuestion.id.in_(selected_question_ids)).all()
+        
+        # Get filter parameters
+        fields = request.form.getlist('fields[]')
+        operators = request.form.getlist('operators[]')
+        conditions = request.form.getlist('conditions[]')
+        
+        print('Received filter data:')
+        print('Fields:', fields)
+        print('Operators:', operators)
+        print('Conditions:', conditions)
+        
+        # Build filter conditions
+        filter_conditions = []
+        i = 0
+        while i < len(fields):
+            if not fields[i] or not operators[i]:
+                i += 1
+                continue
+                
+            field = fields[i]
+            operator = operators[i]
+            
+            # Get the field type from the available_fields list
+            field_type = next((f['type'] for f in available_fields if f['name'] == field), 'text')
+            
+            try:
+                if operator == 'BETWEEN':
+                    # For BETWEEN operator, we need two conditions
+                    if i + 1 < len(conditions):
+                        min_val = conditions[i]
+                        max_val = conditions[i + 1]
+                        
+                        # Convert values based on field type
+                        if field_type == 'numeric':
+                            min_val = Decimal(min_val)
+                            max_val = Decimal(max_val)
+                        
+                        cond = getattr(Project, field).between(min_val, max_val)
+                        print(f'Filter: {field} BETWEEN {min_val} AND {max_val} (type: {field_type})')
+                        filter_conditions.append(cond)
+                        i += 2  # Skip the next condition as it's used for max value
+                    else:
+                        i += 1
+                elif operator == 'IN':
+                    # For IN operator, split the comma-separated values
+                    values = [v.strip() for v in conditions[i].split(',')]
+                    if field_type == 'numeric':
+                        values = [Decimal(v) for v in values]
+                    elif field_type == 'boolean':
+                        values = [v.lower() == 'true' for v in values]
+                    cond = getattr(Project, field).in_(values)
+                    print(f'Filter: {field} IN {values} (type: {field_type})')
+                    filter_conditions.append(cond)
+                    i += 1
+                else:
+                    # For other operators
+                    condition = conditions[i]
+                    
+                    # Convert condition value based on field type
+                    if field_type == 'numeric':
+                        condition = Decimal(condition)
+                    elif field_type == 'boolean':
+                        condition = condition.lower() == 'true'
+                    
+                    if operator == '=':
+                        cond = getattr(Project, field) == condition
+                    elif operator == '!=':
+                        cond = getattr(Project, field) != condition
+                    elif operator == 'LIKE':
+                        cond = getattr(Project, field).ilike(f'%{condition}%')
+                    elif operator == 'NOT LIKE':
+                        cond = ~getattr(Project, field).ilike(f'%{condition}%')
+                    elif operator == '>':
+                        cond = getattr(Project, field) > condition
+                    elif operator == '>=':
+                        cond = getattr(Project, field) >= condition
+                    elif operator == '<':
+                        cond = getattr(Project, field) < condition
+                    elif operator == '<=':
+                        cond = getattr(Project, field) <= condition
+                    else:
+                        cond = None
+                    if cond is not None:
+                        print(f'Filter: {field} {operator} {condition} (type: {field_type})')
+                        filter_conditions.append(cond)
+                    i += 1
+            except (ValueError, TypeError, ArithmeticError) as e:
+                print(f'Error constructing filter for {field}:', e)
+                i += 1
+                continue
+        print('Final filter_conditions:', filter_conditions)
+        
+        # Build the query
+        db_query = Project.query.filter(Project.active == True)  # Only include active projects
+        if filter_conditions:
+            db_query = db_query.filter(*filter_conditions)
+        
+        # Execute the query
+        projects = db_query.all()
+        
+        # Check if this is a count-only request
+        if request.form.get('count_only') == 'true':
+            # Return both count and a list of project names/ids
+            project_list = [
+                {'id': p.id, 'name': p.name, 'file_number': str(p.file_number_db), 'region': p.region, 'partner': p.integrity_partner_name}
+                for p in projects
+            ]
+            return jsonify({'count': len(projects), 'projects': project_list})
+        
+        # Check if this is an export request
+        if request.form.get('export') == 'true':
+            # Create CSV response
+            output = StringIO()
+            writer = csv.writer(output)
+            
+            # Write headers
+            headers = ['Project Name', 'Round', 'File #', 'Region', 'Countries', 'Partner Name']
+            headers.extend([q.name for q in selected_questions])
+            writer.writerow(headers)
+            
+            # Write data
+            for project in projects:
+                row = [
+                    project.name,
+                    project.name_of_round,
+                    project.file_number_db,
+                    project.region,
+                    project.countries_covered,
+                    project.integrity_partner_name
+                ]
+                
+                # Add responses for each question
+                for question in selected_questions:
+                    response = next((r for r in project.evaluation_responses if r.question_id == question.id), None)
+                    row.append(response.get_response_text() if response else '')
+                
+                writer.writerow(row)
+            
+            output.seek(0)
+            return Response(
+                output,
+                mimetype='text/csv',
+                headers={'Content-Disposition': 'attachment; filename=query_results.csv'}
+            )
+        
+        # For AJAX requests, return HTML table
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            html = render_template('main/_query_results_table.html',
+                                 projects=projects,
+                                 selected_questions=selected_questions)
+            return jsonify({'html': html})
+        
+        return jsonify({'error': 'Invalid request'})
+        
+    except Exception as e:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'error': str(e)})
+        flash('Error executing query: ' + str(e), 'error')
+        return redirect(url_for('main.launch_database_query', query_id=query_id))
 

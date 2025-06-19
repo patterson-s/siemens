@@ -356,6 +356,19 @@ class InterviewQuestion(db.Model):
     def __repr__(self):
         return f'<InterviewQuestion {self.title}>'
 
+class DatabaseQuery(db.Model):
+    __tablename__ = 'univ_database_queries'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    prompt = db.Column(db.Text, nullable=False)
+    display_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    question_ids = db.Column(ARRAY(db.Integer), nullable=True)  # Array of question IDs
+
+    def __repr__(self):
+        return f'<DatabaseQuery {self.title}>'
+
 DOCUMENT_TYPES = [
     ('original_proposal', 'Original Proposal'),
     ('final_project_report', 'Project Report'),
