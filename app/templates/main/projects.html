@@ -108,7 +108,7 @@
                                 </td>
                                 <td class="text-right">
                                     <a href="{{ url_for('main.project_details', project_id=project.id) }}" 
-                                       class="btn btn-sm btn-outline-primary">View Project</a>
+                                       class="btn btn-sm btn-outline-primary">View {{ (project.project_type or 'project')|replace('-', ' ')|title }}</a>
                                 </td>
                             </tr>
                         {% else %}

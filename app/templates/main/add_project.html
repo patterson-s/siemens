@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="my-4">Add Project</h1>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('main.add_project') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                <div class="form-group">
+                    <label for="name_of_round">Funding Round</label>
+                    <input type="number" class="form-control" id="name_of_round" name="name_of_round" step="1" min="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="file_number_db">File Number</label>
+                    <input type="number" class="form-control" id="file_number_db" name="file_number_db" step="0.1" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="integrity_partner_name">Partner</label>
+                    <input type="text" class="form-control" id="integrity_partner_name" name="integrity_partner_name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="project_type">Project Type</label>
+                    <select class="form-control" id="project_type" name="project_type">
+                        <option value="overarching project">Overarching project</option>
+                        <option value="project">Project</option>
+                        <option value="sub-project" selected>Sub-project</option>
+                    </select>
+                </div>
+
+                <div class="text-right">
+                    <a href="{{ url_for('main.projects') }}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Create Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

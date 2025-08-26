@@ -119,6 +119,8 @@ class Project(db.Model):
     countries_covered = db.Column(db.String(255))
     integrity_partner_name = db.Column(db.String(255))
     partner_type = db.Column(db.String(50))
+    project_type = db.Column(db.String(50), nullable=False, server_default='sub-project', default='sub-project')
+    parent_project = db.Column(db.Integer, db.ForeignKey('univ_projects.id'), nullable=True)
     project_partners = db.Column(db.Text)
     wb_or_eib = db.Column(db.String(50))
     key_project_objectives = db.Column(db.Text)

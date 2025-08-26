@@ -372,6 +372,28 @@
                                        value="{{ project.name_of_round|int if project.name_of_round else '' }}">
                             </div>
                             <div class="form-group">
+                                <label for="project_type">Project Type</label>
+                                <select class="form-control" id="project_type" name="project_type" onchange="toggleParentProject()">
+                                    <option value="overarching project" {% if project.project_type == 'overarching project' %}selected{% endif %}>Overarching project</option>
+                                    <option value="project" {% if project.project_type == 'project' %}selected{% endif %}>Project</option>
+                                    <option value="sub-project" {% if project.project_type == 'sub-project' or not project.project_type %}selected{% endif %}>Sub-project</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="parentProjectGroup" style="display: none;">
+                                <label for="parent_project">Parent Project</label>
+                                <select class="form-control" id="parent_project" name="parent_project">
+                                    <option value="">Select a parent project...</option>
+                                    {% for parent in overarching_projects %}
+                                        {% if parent.id != project.id %}
+                                            <option value="{{ parent.id }}" {% if project.parent_project == parent.id %}selected{% endif %}>
+                                                {{ parent.file_number_db }} - {{ parent.name }}
+                                            </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <small class="form-text text-muted">Select the overarching project this project belongs to</small>
+                            </div>
+                            <div class="form-group">
                                 <label for="file_number_db">File Number</label>
                                 <input type="number" 
                                        class="form-control" 
@@ -1462,6 +1484,27 @@ $(document).ready(function() {
             return "You have unsaved changes. Are you sure you want to leave?";
         }
     });
+
+    // Project Type and Parent Project Toggle
+    function toggleParentProject() {
+        const projectType = $('#project_type').val();
+        const parentProjectGroup = $('#parentProjectGroup');
+        const parentProjectSelect = $('#parent_project');
+
+        if (projectType === 'sub-project') {
+            parentProjectGroup.show();
+            parentProjectSelect.prop('disabled', false);
+        } else {
+            parentProjectGroup.hide();
+            parentProjectSelect.prop('disabled', true);
+            parentProjectSelect.val(''); // Clear selected value when not a sub-project
+        }
+    }
+
+    // Initial call to set the correct state
+    toggleParentProject();
+    // Update on change
+    $('#project_type').on('change', toggleParentProject);
 });
 </script>
 {% endblock %} 

@@ -282,10 +282,45 @@ def project_details(project_id):
         EvaluationResponse.created_at.desc()
     ).all()
 
+    # Fetch overarching projects for parent selection
+    overarching_projects = Project.query.filter(
+        Project.project_type == 'overarching project'
+    ).order_by(Project.file_number_db.asc()).all()
+
     return render_template('main/project_details.html', 
                          project=project,
                          latest_responses=latest_responses,
+                         overarching_projects=overarching_projects,
                          csrf_token=generate_csrf())
+
+@bp.route('/projects/add', methods=['GET', 'POST'])
+@login_required
+def add_project():
+    if request.method == 'POST':
+        try:
+            name_of_round = request.form.get('name_of_round')
+            file_number_db = request.form.get('file_number_db')
+            integrity_partner_name = request.form.get('integrity_partner_name')
+            project_type = request.form.get('project_type') or 'sub-project'
+
+            project = Project(
+                name_of_round=float(name_of_round) if name_of_round else None,
+                file_number_db=float(file_number_db) if file_number_db else None,
+                integrity_partner_name=integrity_partner_name,
+                project_type=project_type,
+                name=integrity_partner_name or 'New Project',
+                active=True
+            )
+            db.session.add(project)
+            db.session.commit()
+            flash('Project created successfully', 'success')
+            return redirect(url_for('main.project_details', project_id=project.id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating project: {str(e)}', 'danger')
+            return redirect(request.url)
+
+    return render_template('main/add_project.html', csrf_token=generate_csrf())
 
 def extract_text_from_file(file):
     """Extract text content from uploaded files."""
@@ -920,7 +955,7 @@ def ai_agent():
             model="claude-3-5-sonnet-20241022",
             anthropic_api_key=Config.CLAUDE_API_KEY,
             temperature=0.3,  
-            max_tokens=8000
+            max_tokens=4000
         )
 
         # Create the toolkit with both db and llm
@@ -1228,13 +1263,13 @@ def update_project(project_id):
     for field in request.form:
         # Text fields
         if field in ['name', 'scope', 'region', 'countries_covered', 'integrity_partner_name',
-                    'partner_type', 'project_partners', 'wb_or_eib', 'key_project_objectives',
+                    'partner_type', 'project_type', 'project_partners', 'wb_or_eib', 'key_project_objectives',
                     'sectoral_scope', 'specific_sector', 'duration', 'wb_income_classification',
                     'government_type_eiu', 'notes', 'other', 'corruption_quintile']:
             setattr(project, field, request.form[field])
         
         # Integer fields
-        elif field in ['start_year', 'end_year']:
+        elif field in ['start_year', 'end_year', 'parent_project']:
             value = request.form[field]
             if value:
                 setattr(project, field, int(value))
