@@ -72,34 +72,40 @@
                                     {% endif %}
                                 </td>
                                 <td><strong>{{ project.integrity_partner_name }}</strong></td>
-                                <td>{{ project.region }}</td>
-                                <td>{{ project.countries_covered }}</td>
+                                <td>{% if project.project_type != 'overarching project' %}{{ project.region }}{% endif %}</td>
+                                <td>{% if project.project_type != 'overarching project' %}{{ project.countries_covered }}{% endif %}</td>
                                 <td>
                                     <div>
-                                        {% if project.documents %}
-                                            {% for doc in project.documents %}
-                                                {% if doc.document_type.value == 'original_proposal' %}
-                                                    <span class="badge badge-success">Original Proposal</span>
-                                                {% elif doc.document_type.value == 'final_project_report' %}
-                                                    <span class="badge badge-success">Project Report</span>
-                                                {% elif doc.document_type.value == 'external_evaluation' %}
-                                                    <span class="badge badge-success">External Evaluation</span>
-                                                {% endif %}
-                                            {% endfor %}
-                                        {% else %}
-                                            <span class="badge badge-outline-info">No documents</span>
+                                        {% if project.project_type != 'overarching project' %}
+                                            {% if project.documents %}
+                                                {% for doc in project.documents %}
+                                                    {% if doc.document_type.value == 'original_proposal' %}
+                                                        <span class="badge badge-success">Original Proposal</span>
+                                                    {% elif doc.document_type.value == 'final_project_report' %}
+                                                        <span class="badge badge-success">Project Report</span>
+                                                    {% elif doc.document_type.value == 'external_evaluation' %}
+                                                        <span class="badge badge-success">External Evaluation</span>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="badge badge-outline-info">No documents</span>
+                                            {% endif %}
                                         {% endif %}
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="badge {% if response_counts.get(project.id, (0,0))[0] == total_questions %}badge-success{% elif response_counts.get(project.id, (0,0))[0] > 0 %}badge-info{% else %}badge-outline-info{% endif %}">
-                                        {{ response_counts.get(project.id, (0,0))[0] }}/{{ total_questions }}
-                                    </span>
+                                    {% if project.project_type != 'overarching project' %}
+                                        <span class="badge {% if response_counts.get(project.id, (0,0))[0] == total_questions %}badge-success{% elif response_counts.get(project.id, (0,0))[0] > 0 %}badge-info{% else %}badge-outline-info{% endif %}">
+                                            {{ response_counts.get(project.id, (0,0))[0] }}/{{ total_questions }}
+                                        </span>
+                                    {% endif %}
                                 </td>
                                 <td>
-                                    <span class="badge {% if response_counts.get(project.id, (0,0))[0] == 0 %}badge-outline-info{% elif response_counts.get(project.id, (0,0))[1] == response_counts.get(project.id, (0,0))[0] %}badge-success{% elif response_counts.get(project.id, (0,0))[1] > 0 %}badge-info{% else %}badge-outline-info{% endif %}">
-                                        {{ response_counts.get(project.id, (0,0))[1] }}/{{ response_counts.get(project.id, (0,0))[0] }}
-                                    </span>
+                                    {% if project.project_type != 'overarching project' %}
+                                        <span class="badge {% if response_counts.get(project.id, (0,0))[0] == 0 %}badge-outline-info{% elif response_counts.get(project.id, (0,0))[1] == response_counts.get(project.id, (0,0))[0] %}badge-success{% elif response_counts.get(project.id, (0,0))[1] > 0 %}badge-info{% else %}badge-outline-info{% endif %}">
+                                            {{ response_counts.get(project.id, (0,0))[1] }}/{{ response_counts.get(project.id, (0,0))[0] }}
+                                        </span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <span class="badge {% if scoring_stats.get(project.id, 0) == 0 %}badge-outline-info{% elif scoring_stats.get(project.id, 0) == total_scores %}badge-success{% elif scoring_stats.get(project.id, 0) > 0 %}badge-info{% else %}badge-outline-info{% endif %}">
