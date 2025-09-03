@@ -1,153 +1,173 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1 class="my-4">Upload Document for {{ project.name }}</h1>
-    <form method="POST" enctype="multipart/form-data" id="uploadForm">
-        <div class="card mb-4">
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-upload"></i>
+                    Upload Documents for {{ project.name }}
+                </h4>
+                <small class="text-muted">{{ project.region }} - {{ project.countries_covered }}</small>
+            </div>
             <div class="card-body">
-                <!-- File Selection First -->
-                <div class="form-group">
-                    <label for="file">Select Document File</label>
-                    <input type="file" class="form-control-file" id="file" name="file" 
-                           accept=".pdf,.txt,.doc,.docx" required>
-                    <small class="form-text text-muted">Supported formats: PDF, TXT, DOC, DOCX</small>
-                </div>
-
-                <!-- Document Type as Radio Buttons -->
-                <div class="form-group mt-4">
-                    <label class="d-block">Document Type</label>
-                    <div class="btn-group btn-group-toggle" data-toggle="buttons">
-                        {% for value, label in document_types %}
-                            <label class="btn btn-outline-primary">
-                                <input type="radio" name="document_type" value="{{ value }}" required> 
-                                {{ label }}
-                            </label>
-                        {% endfor %}
+                <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                    <!-- Hidden fields for default extraction method -->
+                    <input type="hidden" name="extraction_method" value="auto">
+                    <input type="hidden" name="use_ocr" value="false">
+                    
+                    <hr>
+                    <h5>Document Upload</h5>
+                    <p class="text-muted">You can upload one document of each type. Leave fields empty if you don't have that document type.</p>
+                    
+                    <div class="form-group">
+                        <label for="external_evaluation_file">
+                            <i class="fas fa-file-alt text-primary"></i>
+                            External Evaluation Document
+                        </label>
+                        <input type="file" class="form-control-file" id="external_evaluation_file" name="external_evaluation_file" 
+                               accept=".pdf,.txt,.doc,.docx">
+                        <small class="form-text text-muted">
+                            Independent third-party assessment document
+                        </small>
                     </div>
-                    <small class="form-text text-muted mt-2">Select the type of document you are uploading</small>
-                </div>
-                
-                
+                    
+                    <div class="form-group">
+                        <label for="final_project_report_file">
+                            <i class="fas fa-file-alt text-success"></i>
+                            Final Project Report
+                        </label>
+                        <input type="file" class="form-control-file" id="final_project_report_file" name="final_project_report_file" 
+                               accept=".pdf,.txt,.doc,.docx">
+                        <small class="form-text text-muted">
+                            Organization's self-assessment and final report
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="original_proposal_file">
+                            <i class="fas fa-file-alt text-info"></i>
+                            Original Proposal
+                        </label>
+                        <input type="file" class="form-control-file" id="original_proposal_file" name="original_proposal_file" 
+                               accept=".pdf,.txt,.doc,.docx">
+                        <small class="form-text text-muted">
+                            Initial project design and objectives
+                        </small>
+                    </div>
+                    
+                    <div class="form-group mt-4">
+                        <button type="submit" class="btn btn-primary" id="uploadBtn">
+                            <i class="fas fa-upload"></i>
+                            Upload Documents
+                        </button>
+                        <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-secondary ml-2">
+                            <i class="fas fa-arrow-left"></i>
+                            Back to Project
+                        </a>
+                    </div>
+                </form>
             </div>
         </div>
-
-        <div class="mt-4">
-            <button type="submit" class="btn btn-primary" id="uploadButton" disabled>Upload Document</button>
-            <a href="{{ url_for('main.project_details', project_id=project.id) }}" class="btn btn-secondary">Cancel</a>
-            <div class="progress mt-3 d-none" id="uploadProgress">
-                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%"></div>
+        
+        <!-- Upload Results Section -->
+        <div class="card mt-4" id="resultsSection" style="display: none;">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-check-circle text-success"></i>
+                    Upload Results
+                </h5>
             </div>
-            <small class="text-muted d-block mt-2">Large documents may take longer to process. Please be patient.</small>
+            <div class="card-body" id="resultsContent">
+                <!-- Results will be populated here -->
+            </div>
         </div>
-    </form>
-
-    <style>
-        /* Custom styling for radio button group */
-        .btn-group-toggle .btn {
-            margin-right: 5px;
-            border-radius: 4px !important;
-            text-transform: capitalize;
-        }
         
-        .btn-group-toggle .btn:last-child {
-            margin-right: 0;
-        }
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle"></i>
+                    Document Import Guidelines
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li><strong>External Evaluation:</strong> Independent third-party assessments</li>
+                    <li><strong>Final Project Report:</strong> Organization's self-assessment and final report</li>
+                    <li><strong>Original Proposal:</strong> Initial project design and objectives</li>
+                </ul>
+                <hr>
+                <p class="mb-0">
+                    <strong>Note:</strong> Documents are automatically processed and encrypted for security. 
+                    The system will extract text content and make it available for AI assessment.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('uploadForm');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const resultsSection = document.getElementById('resultsSection');
+    const resultsContent = document.getElementById('resultsContent');
+    
+    // Check if at least one file is selected
+    function validateForm() {
+        const files = [
+            document.getElementById('external_evaluation_file').files[0],
+            document.getElementById('final_project_report_file').files[0],
+            document.getElementById('original_proposal_file').files[0]
+        ];
         
-        .btn-group-toggle .btn.active {
-            background-color: #1abc9c;
-            border-color: #1abc9c;
-            color: white;
-        }
+        const hasFile = files.some(file => file !== undefined);
         
-        /* Improve spacing between buttons */
-        .btn-group {
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        /* Disabled button styling */
-        .btn-primary:disabled {
-            background-color: #cccccc;
-            border-color: #cccccc;
-            cursor: not-allowed;
-        }
+        uploadBtn.disabled = !hasFile;
         
-        /* Progress bar styling */
-        .progress {
-            height: 10px;
+        if (!hasFile) {
+            uploadBtn.title = 'Please select at least one document to upload';
+        } else {
+            uploadBtn.title = '';
         }
-    </style>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('uploadForm');
-            const fileInput = document.getElementById('file');
-            const uploadButton = document.getElementById('uploadButton');
-            const radioContainer = document.querySelector('.btn-group-toggle');
-            const progressBar = document.getElementById('uploadProgress');
-            const progressBarInner = progressBar.querySelector('.progress-bar');
-
-            function checkFormValidity() {
-                const fileSelected = fileInput.files.length > 0;
-                const typeSelected = form.querySelector('input[name="document_type"]:checked') !== null;
-                console.log('File selected:', fileSelected);
-                console.log('Type selected:', typeSelected);
-                uploadButton.disabled = !(fileSelected && typeSelected);
-            }
-
-            // Add event listeners
-            fileInput.addEventListener('change', function(e) {
-                checkFormValidity();
-                
-                // Show file size information
-                if (fileInput.files.length > 0) {
-                    const file = fileInput.files[0];
-                    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-                    
-                    // Suggest extraction method based on file size and type
-                    const extractionMethod = document.getElementById('extractionMethod');
-                    if (file.type.includes('pdf') && fileSizeMB > 5) {
-                        extractionMethod.value = 'robust';
-                    } else if (file.name.toLowerCase().endsWith('.docx') && fileSizeMB > 2) {
-                        extractionMethod.value = 'robust';
-                    }
-                    
-                    console.log(`File size: ${fileSizeMB} MB`);
-                }
-            });
-            
-            // Listen to clicks on the radio button container
-            radioContainer.addEventListener('click', function(e) {
-                // Give the DOM time to update the radio button state
-                setTimeout(checkFormValidity, 50);
-            });
-            
-            // Handle form submission with progress indication
-            form.addEventListener('submit', function(e) {
-                if (uploadButton.disabled) {
-                    e.preventDefault();
-                    return;
-                }
-                
-                // Show progress bar
-                progressBar.classList.remove('d-none');
-                uploadButton.disabled = true;
-                uploadButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
-                
-                // Simulate progress for better UX (actual progress would require server-side events)
-                let progress = 0;
-                const interval = setInterval(function() {
-                    progress += 5;
-                    if (progress > 90) {
-                        clearInterval(interval);
-                    }
-                    progressBarInner.style.width = `${progress}%`;
-                    progressBarInner.setAttribute('aria-valuenow', progress);
-                }, 500);
-            });
-
-            // Initial check
-            checkFormValidity();
-        });
-    </script>
+    }
+    
+    // Add event listeners
+    document.getElementById('external_evaluation_file').addEventListener('change', validateForm);
+    document.getElementById('final_project_report_file').addEventListener('change', validateForm);
+    document.getElementById('original_proposal_file').addEventListener('change', validateForm);
+    
+    // Initial validation
+    validateForm();
+    
+    // Handle form submission
+    form.addEventListener('submit', function(e) {
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    });
+    
+    // Show results if there are any flash messages
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            resultsSection.style.display = 'block';
+            let resultsHtml = '';
+            {% for category, message in messages %}
+                {% if category == 'success' %}
+                    resultsHtml += '<div class="alert alert-success"><i class="fas fa-check-circle"></i> {{ message }}</div>';
+                {% elif category == 'error' or category == 'danger' %}
+                    resultsHtml += '<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> {{ message }}</div>';
+                {% elif category == 'warning' %}
+                    resultsHtml += '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> {{ message }}</div>';
+                {% else %}
+                    resultsHtml += '<div class="alert alert-info"><i class="fas fa-info-circle"></i> {{ message }}</div>';
+                {% endif %}
+            {% endfor %}
+            resultsContent.innerHTML = resultsHtml;
+        {% endif %}
+    {% endwith %}
+});
+</script>
 {% endblock %} 

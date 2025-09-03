@@ -1021,6 +1021,27 @@
 
     .document-main-line > span:first-of-type {
         flex-grow: 1;
+        word-wrap: break-word;
+        word-break: break-all;
+        overflow-wrap: break-word;
+        max-width: 60%;
+    }
+
+    /* Fix filename wrapping in modals */
+    #documentName {
+        word-wrap: break-word;
+        word-break: break-all;
+        overflow-wrap: break-word;
+        white-space: normal;
+        max-width: 100%;
+    }
+
+    .modal-title {
+        word-wrap: break-word;
+        word-break: break-all;
+        overflow-wrap: break-word;
+        white-space: normal;
+        max-width: 100%;
     }
 
     .document-details {

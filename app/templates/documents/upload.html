@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-upload"></i>
+                    Import Documents
+                </h4>
+            </div>
+            <div class="card-body">
+                                 <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                     <div class="form-group">
+                         <label for="project_id">Select Project</label>
+                         <select class="form-control" id="project_id" name="project_id" required>
+                             <option value="">Choose a project...</option>
+                             {% for project in projects %}
+                                 <option value="{{ project.id }}">{{ project.name }} ({{ project.region }})</option>
+                             {% endfor %}
+                         </select>
+                     </div>
+                     
+                                         <!-- Hidden fields for default extraction method -->
+                    <input type="hidden" name="extraction_method" value="auto">
+                    <input type="hidden" name="use_ocr" value="false">
+                     
+                     <hr>
+                     <h5>Document Upload</h5>
+                     <p class="text-muted">You can upload one document of each type. Leave fields empty if you don't have that document type.</p>
+                     
+                     <div class="form-group">
+                         <label for="external_evaluation_file">
+                             <i class="fas fa-file-alt text-primary"></i>
+                             External Evaluation Document
+                         </label>
+                         <input type="file" class="form-control-file" id="external_evaluation_file" name="external_evaluation_file" 
+                                accept=".pdf,.txt,.doc,.docx">
+                         <small class="form-text text-muted">
+                             Independent third-party assessment document
+                         </small>
+                     </div>
+                     
+                     <div class="form-group">
+                         <label for="final_project_report_file">
+                             <i class="fas fa-file-alt text-success"></i>
+                             Final Project Report
+                         </label>
+                         <input type="file" class="form-control-file" id="final_project_report_file" name="final_project_report_file" 
+                                accept=".pdf,.txt,.doc,.docx">
+                         <small class="form-text text-muted">
+                             Organization's self-assessment and final report
+                         </small>
+                     </div>
+                     
+                     <div class="form-group">
+                         <label for="original_proposal_file">
+                             <i class="fas fa-file-alt text-info"></i>
+                             Original Proposal
+                         </label>
+                         <input type="file" class="form-control-file" id="original_proposal_file" name="original_proposal_file" 
+                                accept=".pdf,.txt,.doc,.docx">
+                         <small class="form-text text-muted">
+                             Initial project design and objectives
+                         </small>
+                     </div>
+                     
+                     <div class="form-group mt-4">
+                         <button type="submit" class="btn btn-primary" id="uploadBtn">
+                             <i class="fas fa-upload"></i>
+                             Upload Documents
+                         </button>
+                         <a href="{{ url_for('main.projects') }}" class="btn btn-secondary ml-2">
+                             <i class="fas fa-arrow-left"></i>
+                             Back to Projects
+                         </a>
+                     </div>
+                 </form>
+            </div>
+        </div>
+        
+        <!-- Upload Results Section -->
+        <div class="card mt-4" id="resultsSection" style="display: none;">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-check-circle text-success"></i>
+                    Upload Results
+                </h5>
+            </div>
+            <div class="card-body" id="resultsContent">
+                <!-- Results will be populated here -->
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle"></i>
+                    Document Import Guidelines
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li><strong>External Evaluation:</strong> Independent third-party assessments</li>
+                    <li><strong>Final Project Report:</strong> Organization's self-assessment and final report</li>
+                    <li><strong>Original Proposal:</strong> Initial project design and objectives</li>
+                </ul>
+                <hr>
+                <p class="mb-0">
+                    <strong>Note:</strong> Documents are automatically processed and encrypted for security. 
+                    The system will extract text content and make it available for AI assessment.
+                </p>
+            </div>
+        </div>
+         </div>
+ </div>
+ {% endblock %}
+
+ {% block scripts %}
+ <script>
+ document.addEventListener('DOMContentLoaded', function() {
+     const form = document.getElementById('uploadForm');
+     const uploadBtn = document.getElementById('uploadBtn');
+     const resultsSection = document.getElementById('resultsSection');
+     const resultsContent = document.getElementById('resultsContent');
+     
+     // Check if at least one file is selected
+     function validateForm() {
+         const files = [
+             document.getElementById('external_evaluation_file').files[0],
+             document.getElementById('final_project_report_file').files[0],
+             document.getElementById('original_proposal_file').files[0]
+         ];
+         
+         const hasFile = files.some(file => file !== undefined);
+         const hasProject = document.getElementById('project_id').value !== '';
+         
+         uploadBtn.disabled = !hasFile || !hasProject;
+         
+         if (!hasFile) {
+             uploadBtn.title = 'Please select at least one document to upload';
+         } else if (!hasProject) {
+             uploadBtn.title = 'Please select a project';
+         } else {
+             uploadBtn.title = '';
+         }
+     }
+     
+     // Add event listeners
+     document.getElementById('project_id').addEventListener('change', validateForm);
+     document.getElementById('external_evaluation_file').addEventListener('change', validateForm);
+     document.getElementById('final_project_report_file').addEventListener('change', validateForm);
+     document.getElementById('original_proposal_file').addEventListener('change', validateForm);
+     
+     // Initial validation
+     validateForm();
+     
+     // Handle form submission
+     form.addEventListener('submit', function(e) {
+         uploadBtn.disabled = true;
+         uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+     });
+     
+     // Show results if there are any flash messages
+     {% with messages = get_flashed_messages(with_categories=true) %}
+         {% if messages %}
+             resultsSection.style.display = 'block';
+             let resultsHtml = '';
+             {% for category, message in messages %}
+                 {% if category == 'success' %}
+                     resultsHtml += '<div class="alert alert-success"><i class="fas fa-check-circle"></i> {{ message }}</div>';
+                 {% elif category == 'error' or category == 'danger' %}
+                     resultsHtml += '<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> {{ message }}</div>';
+                 {% elif category == 'warning' %}
+                     resultsHtml += '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> {{ message }}</div>';
+                 {% else %}
+                     resultsHtml += '<div class="alert alert-info"><i class="fas fa-info-circle"></i> {{ message }}</div>';
+                 {% endif %}
+             {% endfor %}
+             resultsContent.innerHTML = resultsHtml;
+         {% endif %}
+     {% endwith %}
+ });
+ </script>
+ {% endblock %}

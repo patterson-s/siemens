@@ -1,0 +1,42 @@
+Name of Round,File Number (in DB),Scope,Project Type,Region ,Countries Covered,Integrity Partner Name,Partner Type,Project Partners (if applicable),WB or EIB?,Key Project Objectives,Sectoral Scope,Specific Sector,Funding Amount (millions of USD),Duration (Actual),Start and End Years (Actual),WB Income Classification,Corruption Quintile,CCI,Government Type (EIU),Government Score (EIU)
+,,,,,,,,,,,,,,,,,,,,
+4,2,Global,Project,Global,,IACA,IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,"Public, Private, Civil Society and Education ",2.17,3 years,2021-2025,,,,,
+4,3.1,Country Subproject,Overarching Project,,,MACN,,,,,,,,,,,,,,
+4,3.1,Country Subproject,Subproject,South Asia,Bangladesh,MACN,Other (network),Indian National Shipowners' Association (INSA),WB,"Collective Action, Education and Training",Single Sector,Trade and Logistics,0.3,3 years,2021-2024,LM,20%,-1,Hybrid Regime,5.99
+4,3.2,Country Subproject,Subproject,South Asia,India,MACN,Other (network),Indian National Shipowners' Association (INSA),WB,"Collective Action, Education and Training",Single Sector,Trade and Logistics,1.4,3 years,2021-2024,LM,60%,-0.3,Flawed Democracy,6.91
+4,3.3,Country Subproject,Subproject,South Asia,Pakistan,MACN,Other (network),Indian National Shipowners' Association (INSA),WB,"Collective Action, Education and Training",Single Sector,Trade and Logistics,0.3,3 years,2021-2024,LM,40%,-0.8,Hybrid Regime,4.31
+4,4,,Overarching Project,,,OECD,,,,,,,,,,,,,,
+4,4.1,Country Subproject,Subproject,Africa,Algeria  ,OECD,IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,"Energy, Industry, Technology and IT, Healthcare",0.45,3 years,2021-2024,LM,40%,-0.6,,3.77
+4,4.2,Country Subproject,Subproject,Central and Eastern Europe,Croatia,OECD,IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,"Energy, Industry, Technology and IT, Healthcare",0.45,3 years,2021-2024,H,60%,0.04,Flawed Democracy,6.5
+4,4.3,Country Subproject,Subproject,Central and Eastern Europe,Serbia,OECD,IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,"Energy, Industry, Technology and IT, Healthcare",0.45,3 years,2021-2024,UM,40%,-0.5,Flawed Democracy,6.36
+4,4.4,Country Subproject,Subproject,Middle East,Saudi Arabia,OECD,IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,"Energy, Industry, Technology and IT, Healthcare",0.45,3 years,2021-2024,H,80%,0.3,Authoritarian Regime,2.08
+4,4.5,Country Subproject,Subproject,Africa,South Africa,OECD,IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,"Energy, Industry, Technology and IT, Healthcare",0.45,3 years,2021-2024,UM,60%,-0.03,Flawed Democracy,7.05
+4,4.6,Global Subproject,Subproject,Central Asia and Russia,Uzbekistan,OECD,IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,"Energy, Industry, Technology and IT, Healthcare",0.45,3 years,2021-2024,LM,40%,-0.83,Authoritarian Regime,2.12
+4,4.7,Country Subproject,Subproject,Global,,OECD,IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,"Energy, Industry, Technology and IT, Healthcare",0.3,3 years,2021-2024,,,,,
+4,5,,Overarching Project,,,TI Secretariat,,,,,,,,,,,,,,
+4,5.1,Country Subproject,Subproject,Americas,Argentina,TI Secretariat,IO,,WB,Collective Action ,Cross-Secotral,"Infrastructure, Healthcare",0.25,3 years,2021-2024,UM,40%,-0.4,Flawed Democracy,6.81
+4,5.2,Country Subproject,Subproject,Central and Eastern Europe,Romania,TI Secretariat,IO,,WB,Collective Action ,Cross-Sectoral,"Infrastructure, Healthcare",0.25,3 years,2021-2024,H,60%,-0.06,Flawed Democracy,6.43
+4,5.3,Global Subproject,Subproject,Southern Europe,Spain,TI Secretariat,IO,,WB,Collective Action ,Cross-Sectoral,"Infrastructure, Healthcare",0.25,3 years,2021-2024,H,80%,0.7,Flawed Democracy,7.94
+4,5.4,Country Subproject,Subproject,Global,,TI Secretariat,IO,,WB,Collective Action ,Cross-Sectoral,"Infrastructure, Healthcare",0.25,3 years,2021-2024,,,,,
+4,6,,Overarching Project,,,UNGC (FGC),,,,,,,,,,,,,,
+4,6.1,Country Subproject,Subproject,Americas,Argentina,UNGC (FGC),IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,NA,0.3,3 years,2021-2024,UM,40%,-0.4,Flawed Democracy,6.81
+4,6.1,Global Subproject,Subproject,East Asia and Pacific,Thailand,UNGC (FGC),IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,NA,0.3,3 years,2021-2024,UM,40%,-0.5,Flawed Democracy,6.04
+4,6.11,Country Subproject,Subproject,Global,,UNGC (FGC),IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,NA,1,3 years,2021-2024,,,,,
+4,6.2,Country Subproject,Subproject,South Asia,Bangladesh  ,UNGC (FGC),IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,NA,0.3,3 years,2021-2024,LM,20%,-1,Hybrid Regime,5.99
+4,6.3,Country Subproject,Subproject,Americas,Brazil,UNGC (FGC),IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,NA,0.3,3 years,2021-2024,UM,40%,-0.5,Flawed Democracy,6.86
+4,6.4,Country Subproject,Subproject,South Asia,India,UNGC (FGC),IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,NA,0.3,3 years,2021-2024,LM,60%,-0.3,Flawed Democracy,6.91
+4,6.5,Country Subproject,Subproject,East Asia and Pacific,Indonesia,UNGC (FGC),IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,NA,0.3,3 years,2021-2024,LM,40%,-0.45,Flawed Democracy,6.71
+4,6.6,Country Subproject,Subproject,Southern Europe,Italy,UNGC (FGC),IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,NA,0.3,3 years,2021-2024,H,80%,0.5,Flawed Democracy,7.68
+4,6.7,Country Subproject,Subproject,Middle East,Egypt,UNGC (FGC),IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,NA,0.3,3 years,2021-2024,LM,40%,-0.7,Authoritarian Regime,2.93
+4,6.8,Country Subproject,Subproject,Africa,Kenya  ,UNGC (FGC),IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,NA,0.3,3 years,2021-2024,LM,40%,-0.7,Hybrid Regime,5.05
+4,6.9,Country Subproject,Subproject,East Asia and Pacific,Malaysia,UNGC (FGC),IO,,WB,"Collective Action, Education and Training",Cross-Sectoral,NA,0.3,3 years,2021-2024,UM,60%,0.15,Flawed Democracy,7.24
+4,7,,Overarching Project,,,UNODC,,,,,,,,,,,,,,
+4,7.1,Country Subproject,Subproject,Americas,Brazil,UNODC,IO,,WB,Collective Action ,Cross-Sectoral,"Industry, Infrastructure, Healthcare",0.33,3 years,2021-2025,UM,40%,-0.5,Flawed Democracy,6.86
+4,7.2,Country Subproject,Subproject,Americas,Colombia,UNODC,IO,,WB,Collective Action ,Cross-Sectoral,"Industry, Infrastructure, Healthcare",0.11,3 years,2021-2025,UM,60%,-0.37,Flawed Democracy,6.48
+4,7.3,Country Subproject,Subproject,Middle East,Egypt,UNODC,IO,,WB,Collective Action ,Cross-Sectoral,"Industry, Infrastructure, Healthcare",0.3,3 years,2021-2025,LM,40%,-0.7,Authoritarian Regime,2.93
+4,7.4,Country Subproject,Subproject,Middle East,Saudi Arabia,UNODC,IO,,WB,Collective Action ,Cross-Sectoral,"Industry, Infrastructure, Healthcare",0.41,3 years,2021-2025,H,80%,0.3,Authoritarian Regime,2.08
+4,7.5,Country Subproject,Subproject,Africa,Ethiopia,UNODC,IO,,WB,Collective Action ,Cross-Sectoral,"Industry, Infrastructure, Healthcare",0.3,3 years,2021-2025,L ,40%,-0.4,Authoritarian Regime,3.3
+4,7.6,Country Subproject,Subproject,East Asia and Pacific,Malaysia,UNODC,IO,,WB,Collective Action ,Cross-Sectoral,"Industry, Infrastructure, Healthcare",0.27,3 years,2021-2025,UM,60%,0.15,Flawed Democracy,7.24
+4,7.7,Country Subproject,Subproject,Central Asia and Russia,Uzbekistan,UNODC,IO,,WB,Collective Action ,Cross-Sectoral,"Industry, Infrastructure, Healthcare",0.25,3 years,2021-2025,LM,40%,-0.83,Authoritarian Regime,2.12
+4,7.8,Global Subproject,Subproject,Global,,UNODC,IO,,WB,Collective Action ,Cross-Sectoral,"Industry, Infrastructure, Healthcare",2,3 years,2021-2025,,,,,
+4,8,Regional,Project,Africa,"Ghana, Kenya, Nigeria, Rwanda, South Africa, Uganda, Zambia",WU Vienna,Academic Institution,,WB,"Collective Action, Education and Training",Cross-Sectoral,"Infrastructure, Industry, Healthcare",1,3 years,2021-2024,,,,,

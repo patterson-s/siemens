@@ -63,7 +63,7 @@ class Document(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey('univ_projects.id'), nullable=False)
     filename = db.Column(db.String(255), nullable=False)
     file_type = db.Column(db.String(100))
-    document_type = db.Column(db.Enum(DocumentType), nullable=False, default=DocumentType.external_evaluation)
+    document_type = db.Column(db.String(50), nullable=False, default='external_evaluation')
     file_size = db.Column(db.Integer)  # Word count
     content_preview = db.Column(db.Text)
     _content = db.Column('content', db.Text)  # Renamed to match EvaluationResponse pattern

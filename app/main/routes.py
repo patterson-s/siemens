@@ -349,63 +349,83 @@ def upload_document(project_id):
     project = Project.query.get_or_404(project_id)
     
     if request.method == 'POST':
-        if 'file' not in request.files:
-            flash('No file selected', 'danger')
-            return redirect(request.url)
-            
-        file = request.files['file']
-        if file.filename == '':
-            flash('No file selected', 'danger')
-            return redirect(request.url)
-            
-        if file and allowed_file(file.filename):
+        # Define document types and their corresponding file inputs
+        document_types = {
+            'external_evaluation_file': DocumentType.external_evaluation,
+            'final_project_report_file': DocumentType.final_project_report,
+            'original_proposal_file': DocumentType.original_proposal
+        }
+        
+        uploaded_documents = []
+        errors = []
+        
+        # Process each document type
+        for file_input_name, document_type in document_types.items():
+            if file_input_name in request.files:
+                file = request.files[file_input_name]
+                if file and file.filename != '' and allowed_file(file.filename):
+                    try:
+                        # Extract content from the file
+                        content = extract_text_from_file(file)
+                        
+                        # Check if extraction was successful
+                        word_count = len(content.split())
+                        if word_count < 20:
+                            errors.append(f'Warning: {file.filename} - Only {word_count} words were extracted. The document might be protected or primarily image-based.')
+                        
+                        # Create a preview
+                        content_preview = content[:500] + "..." if len(content) > 500 else content
+                        
+                        # Create the document
+                        document = Document(
+                            project_id=project.id,
+                            filename=secure_filename(file.filename),
+                            file_type=file.content_type[:255] if hasattr(file, 'content_type') else file.filename.rsplit('.', 1)[1].lower(),
+                            document_type=document_type.value,
+                            file_size=word_count,  # Word count
+                            content_preview=content_preview
+                        )
+                        
+                        # Set the encrypted content
+                        document.set_content(content)
+                        
+                        db.session.add(document)
+                        uploaded_documents.append({
+                            'filename': file.filename,
+                            'type': document_type.value.replace('_', ' ').title(),
+                            'word_count': word_count
+                        })
+                        
+                    except Exception as e:
+                        logger.error(f"Error processing document {file.filename}: {str(e)}")
+                        errors.append(f'Error processing {file.filename}: {str(e)}')
+        
+        # Commit all documents at once
+        if uploaded_documents:
             try:
-                # Extract text from the document
-                text = extract_text_from_file(file)
-                
-                # Calculate word count
-                word_count = len(text.split())
-                
-                # Create new document
-                document = Document(
-                    project_id=project.id,
-                    filename=secure_filename(file.filename),
-                    file_type=file.content_type,
-                    document_type=request.form.get('document_type'),
-                    file_size=word_count,  # Store word count instead of file size
-                    content_preview=text[:1000] if text else None
-                )
-                
-                # Encrypt and set the content
-                try:
-                    document.set_content(text)
-                    print(f"Content encrypted successfully")  # Debug log
-                except Exception as e:
-                    raise ValueError(f"Encryption failed: {str(e)}")
-                
-                db.session.add(document)
                 db.session.commit()
-                
-                # Verify content was saved
-                saved_doc = Document.query.get(document.id)
-                if not saved_doc._content:
-                    raise ValueError("Content was not saved to database")
-                
-                flash(f'Document uploaded successfully. Word count: {word_count}', 'success')
-                return redirect(url_for('main.project_details', project_id=project.id))
-                
+                success_message = f'Successfully uploaded {len(uploaded_documents)} document(s): '
+                for doc in uploaded_documents:
+                    success_message += f'{doc["filename"]} ({doc["word_count"]} words), '
+                success_message = success_message.rstrip(', ')
+                flash(success_message, 'success')
             except Exception as e:
                 db.session.rollback()
-                flash(f'Error processing document: {str(e)}', 'danger')
+                flash(f'Database error: {str(e)}', 'danger')
                 return redirect(request.url)
-                
-        else:
-            flash('Invalid file type. Supported formats: PDF, TXT, DOC, DOCX', 'danger')
-            return redirect(request.url)
+        
+        # Show any errors
+        for error in errors:
+            flash(error, 'warning')
+        
+        # If no documents were uploaded
+        if not uploaded_documents and not errors:
+            flash('No valid documents were selected for upload', 'warning')
+        
+        return redirect(request.url)
     
     return render_template('main/upload_document.html', 
-                         project=project,
-                         document_types=DOCUMENT_TYPES)
+                         project=project)
 
 @bp.route('/uploads/<path:filename>')
 def uploaded_file(filename):

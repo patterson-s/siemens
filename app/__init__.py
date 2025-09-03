@@ -51,6 +51,9 @@ def create_app(config_class=Config):
     from app.auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
 
+    from app.routes.document_routes import bp as documents_bp
+    app.register_blueprint(documents_bp, url_prefix='/documents')
+
     # Create database tables
     with app.app_context():
         db.create_all()

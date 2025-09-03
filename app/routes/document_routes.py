@@ -190,65 +190,100 @@ def try_python_ocr(file_path, filename):
         logger.error(f"Python OCR alternative failed: {str(e)}")
         return ""
 
-@bp.route('/upload', methods=['POST'])
+@bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_document():
-    if 'file' not in request.files:
-        flash('No file part', 'danger')
+    if request.method == 'GET':
+        # Get all projects for the dropdown
+        projects = Project.query.filter_by(active=True).order_by(Project.name).all()
+        document_types = [choice for choice in DocumentType.choices()]
+        return render_template('documents/upload.html', 
+                             projects=projects,
+                             document_types=document_types)
+    
+    # POST method - handle multiple file uploads
+    project_id = request.form.get('project_id')
+    if not project_id:
+        flash('Please select a project', 'danger')
         return redirect(request.url)
     
-    file = request.files['file']
-    if file.filename == '':
-        flash('No selected file', 'danger')
-        return redirect(request.url)
+    # Get advanced options
+    extraction_method = request.form.get('extraction_method', 'auto')
+    use_ocr = 'use_ocr' in request.form
     
-    if file and allowed_file(file.filename):
-        # Process the file
-        filename = secure_filename(file.filename)
-        project_id = request.form.get('project_id')
-        document_type = request.form.get('document_type')
-        
-        # Get advanced options
-        extraction_method = request.form.get('extraction_method', 'auto')
-        use_ocr = 'use_ocr' in request.form
-        
+    # Define document types and their corresponding file inputs
+    document_types = {
+        'external_evaluation_file': DocumentType.external_evaluation,
+        'final_project_report_file': DocumentType.final_project_report,
+        'original_proposal_file': DocumentType.original_proposal
+    }
+    
+    uploaded_documents = []
+    errors = []
+    
+    # Process each document type
+    for file_input_name, document_type in document_types.items():
+        if file_input_name in request.files:
+            file = request.files[file_input_name]
+            if file and file.filename != '' and allowed_file(file.filename):
+                try:
+                    # Extract content from the file with advanced options
+                    content = extract_text_from_file(file, extraction_method, use_ocr)
+                    
+                    # Check if extraction was successful
+                    word_count = len(content.split())
+                    if word_count < 20:
+                        errors.append(f'Warning: {file.filename} - Only {word_count} words were extracted. The document might be protected or primarily image-based.')
+                    
+                    # Create a preview
+                    content_preview = content[:500] + "..." if len(content) > 500 else content
+                    
+                    # Create the document
+                    document = Document(
+                        project_id=project_id,
+                        filename=secure_filename(file.filename),
+                        file_type=file.content_type[:255] if hasattr(file, 'content_type') else file.filename.rsplit('.', 1)[1].lower(),
+                        document_type=document_type.value,
+                        file_size=word_count,  # Word count
+                        content_preview=content_preview
+                    )
+                    
+                    # Set the encrypted content
+                    document.set_content(content)
+                    
+                    db.session.add(document)
+                    uploaded_documents.append({
+                        'filename': file.filename,
+                        'type': document_type.value.replace('_', ' ').title(),
+                        'word_count': word_count
+                    })
+                    
+                except Exception as e:
+                    logger.error(f"Error processing document {file.filename}: {str(e)}")
+                    errors.append(f'Error processing {file.filename}: {str(e)}')
+    
+    # Commit all documents at once
+    if uploaded_documents:
         try:
-            # Extract content from the file with advanced options
-            content = extract_text_from_file(file, extraction_method, use_ocr)
-            
-            # Check if extraction was successful
-            word_count = len(content.split())
-            if word_count < 20:
-                flash(f'Warning: Only {word_count} words were extracted. The document might be protected or primarily image-based.', 'warning')
-            
-            # Create a preview
-            content_preview = content[:500] + "..." if len(content) > 500 else content
-            
-            # Create the document
-            document = Document(
-                project_id=project_id,
-                filename=filename,
-                file_type=file.content_type[:255] if hasattr(file, 'content_type') else file.filename.rsplit('.', 1)[1].lower(),
-                document_type=document_type,
-                file_size=word_count,  # Word count
-                content_preview=content_preview
-            )
-            
-            # Set the encrypted content
-            document.set_content(content)
-            
-            db.session.add(document)
             db.session.commit()
-            
-            flash(f'Document uploaded successfully! {word_count} words extracted.', 'success')
-            return redirect(url_for('documents.view', id=document.id))
-            
+            success_message = f'Successfully uploaded {len(uploaded_documents)} document(s): '
+            for doc in uploaded_documents:
+                success_message += f'{doc["filename"]} ({doc["word_count"]} words), '
+            success_message = success_message.rstrip(', ')
+            flash(success_message, 'success')
         except Exception as e:
-            logger.error(f"Error processing document: {str(e)}")
-            flash(f'Error processing document: {str(e)}', 'danger')
+            db.session.rollback()
+            flash(f'Database error: {str(e)}', 'danger')
             return redirect(request.url)
     
-    flash('File type not allowed', 'danger')
+    # Show any errors
+    for error in errors:
+        flash(error, 'warning')
+    
+    # If no documents were uploaded
+    if not uploaded_documents and not errors:
+        flash('No valid documents were selected for upload', 'warning')
+    
     return redirect(request.url)
 
 @bp.route('/view/<int:id>')
