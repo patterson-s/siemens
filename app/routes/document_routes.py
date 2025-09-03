@@ -194,8 +194,8 @@ def try_python_ocr(file_path, filename):
 @login_required
 def upload_document():
     if request.method == 'GET':
-        # Get all projects for the dropdown
-        projects = Project.query.filter_by(active=True).order_by(Project.name).all()
+        # Get Round 4 projects for the dropdown
+        projects = Project.query.filter_by(active=True, name_of_round=4.0).order_by(Project.name).all()
         document_types = [choice for choice in DocumentType.choices()]
         return render_template('documents/upload.html', 
                              projects=projects,
@@ -207,9 +207,7 @@ def upload_document():
         flash('Please select a project', 'danger')
         return redirect(request.url)
     
-    # Get advanced options
-    extraction_method = request.form.get('extraction_method', 'auto')
-    use_ocr = 'use_ocr' in request.form
+    # Advanced options are handled via hidden fields in the template
     
     # Define document types and their corresponding file inputs
     document_types = {
@@ -227,8 +225,8 @@ def upload_document():
             file = request.files[file_input_name]
             if file and file.filename != '' and allowed_file(file.filename):
                 try:
-                    # Extract content from the file with advanced options
-                    content = extract_text_from_file(file, extraction_method, use_ocr)
+                    # Extract content from the file
+                    content = extract_text_from_file(file)
                     
                     # Check if extraction was successful
                     word_count = len(content.split())

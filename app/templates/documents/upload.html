@@ -17,7 +17,9 @@
                          <select class="form-control" id="project_id" name="project_id" required>
                              <option value="">Choose a project...</option>
                              {% for project in projects %}
-                                 <option value="{{ project.id }}">{{ project.name }} ({{ project.region }})</option>
+                                 <option value="{{ project.id }}">
+                                     {% if project.file_number_db %}{{ project.file_number_db }} - {% endif %}{{ project.name }} ({{ project.region }})
+                                 </option>
                              {% endfor %}
                          </select>
                      </div>
