@@ -79,11 +79,11 @@
                                         {% if project.project_type != 'overarching project' %}
                                             {% if project.documents %}
                                                 {% for doc in project.documents %}
-                                                    {% if doc.document_type.value == 'original_proposal' %}
+                                                    {% if doc.document_type == 'original_proposal' %}
                                                         <span class="badge badge-success">Original Proposal</span>
-                                                    {% elif doc.document_type.value == 'final_project_report' %}
+                                                    {% elif doc.document_type == 'final_project_report' %}
                                                         <span class="badge badge-success">Project Report</span>
-                                                    {% elif doc.document_type.value == 'external_evaluation' %}
+                                                    {% elif doc.document_type == 'external_evaluation' %}
                                                         <span class="badge badge-success">External Evaluation</span>
                                                     {% endif %}
                                                 {% endfor %}

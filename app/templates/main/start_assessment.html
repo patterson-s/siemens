@@ -45,18 +45,18 @@
                     <div id="original-proposal-docs">
                         {% set has_proposals = false %}
                         {% for document in project.documents %}
-                            {% if document.document_type.value == 'original_proposal' %}
+                            {% if document.document_type == 'original_proposal' %}
                                 {% set has_proposals = true %}
                                 <div class="custom-control custom-checkbox mb-2">
                                     <input type="checkbox" class="custom-control-input document-checkbox" 
                                            id="document_{{ document.id }}" 
                                            name="selected_documents" 
                                            value="{{ document.id }}"
-                                           data-type="{{ document.document_type.value }}"
+                                           data-type="{{ document.document_type }}"
                                            checked>
                                     <label class="custom-control-label" for="document_{{ document.id }}">
                                         <strong>{{ document.filename }}</strong>
-                                        <span class="text-muted">({{ document.document_type.value|string|replace('_', ' ')|title }})</span>
+                                        <span class="text-muted">({{ document.document_type|replace('_', ' ')|title }})</span>
                                         <small class="text-muted d-block">
                                             Size: {{ "{:,}".format(document.file_size) }} words | 
                                             Type: {{ document.file_type|upper }}
@@ -72,18 +72,18 @@
                     <div id="final-project-report-docs">
                         {% set has_reports = false %}
                         {% for document in project.documents %}
-                            {% if document.document_type.value == 'final_project_report' %}
+                            {% if document.document_type == 'final_project_report' %}
                                 {% set has_reports = true %}
                                 <div class="custom-control custom-checkbox mb-2">
                                     <input type="checkbox" class="custom-control-input document-checkbox" 
                                            id="document_{{ document.id }}" 
                                            name="selected_documents" 
                                            value="{{ document.id }}"
-                                           data-type="{{ document.document_type.value }}"
+                                           data-type="{{ document.document_type }}"
                                            checked>
                                     <label class="custom-control-label" for="document_{{ document.id }}">
                                         <strong>{{ document.filename }}</strong>
-                                        <span class="text-muted">({{ document.document_type.value|string|replace('_', ' ')|title }})</span>
+                                        <span class="text-muted">({{ document.document_type|replace('_', ' ')|title }})</span>
                                         <small class="text-muted d-block">
                                             Size: {{ "{:,}".format(document.file_size) }} words | 
                                             Type: {{ document.file_type|upper }}
@@ -99,18 +99,18 @@
                     <div id="external-evaluation-docs">
                         {% set has_evaluations = false %}
                         {% for document in project.documents %}
-                            {% if document.document_type.value == 'external_evaluation' %}
+                            {% if document.document_type == 'external_evaluation' %}
                                 {% set has_evaluations = true %}
                                 <div class="custom-control custom-checkbox mb-2">
                                     <input type="checkbox" class="custom-control-input document-checkbox" 
                                            id="document_{{ document.id }}" 
                                            name="selected_documents" 
                                            value="{{ document.id }}"
-                                           data-type="{{ document.document_type.value }}"
+                                           data-type="{{ document.document_type }}"
                                            checked>
                                     <label class="custom-control-label" for="document_{{ document.id }}">
                                         <strong>{{ document.filename }}</strong>
-                                        <span class="text-muted">({{ document.document_type.value|string|replace('_', ' ')|title }})</span>
+                                        <span class="text-muted">({{ document.document_type|replace('_', ' ')|title }})</span>
                                         <small class="text-muted d-block">
                                             Size: {{ "{:,}".format(document.file_size) }} words | 
                                             Type: {{ document.file_type|upper }}
