@@ -139,13 +139,13 @@ class Project(db.Model):
     notes = db.Column(db.Text)
     active = db.Column(db.Boolean, default=True, nullable=False)
     
-    # Numeric count fields
-    num_pubpri_dialogues = db.Column(db.Numeric(5, 1))
-    num_legal_contribuntions = db.Column(db.Numeric(5, 1))
-    num_implement_mechanisms = db.Column(db.Numeric(5, 1))
-    num_voluntary_standards = db.Column(db.Numeric(5, 1))
-    num_voluntary_signatories = db.Column(db.Numeric(5, 1))
-    num_organizations_supported = db.Column(db.Numeric(5, 1))
+    # Numeric count fields (store as integers now)
+    num_pubpri_dialogues       = db.Column(db.Integer)
+    num_legal_contribuntions   = db.Column(db.Integer)
+    num_implement_mechanisms   = db.Column(db.Integer)
+    num_voluntary_standards    = db.Column(db.Integer)
+    num_voluntary_signatories  = db.Column(db.Integer)
+    num_organizations_supported= db.Column(db.Integer)
     
     # Rating fields
     rate_output_achieved = db.Column(db.Integer)
@@ -160,12 +160,12 @@ class Project(db.Model):
     rate_signif_capacity = db.Column(db.String(50))
     
     # Add these new fields
-    num_new_courses = db.Column(db.Numeric(5, 1))
-    num_individ_trained = db.Column(db.Numeric(5, 1))
-    num_training_activities = db.Column(db.Numeric(5, 1))
-    num_organizaed_events = db.Column(db.Numeric(5, 1))
-    num_event_attendees = db.Column(db.Numeric(5, 1))
-    num_publications = db.Column(db.Numeric(5, 1))
+    num_new_courses            = db.Column(db.Integer)
+    num_individ_trained        = db.Column(db.Integer)
+    num_training_activities    = db.Column(db.Integer)
+    num_organizaed_events      = db.Column(db.Integer)
+    num_event_attendees        = db.Column(db.Integer)
+    num_publications           = db.Column(db.Integer)
     
     # Update relationship definition to match Document model
     documents = db.relationship('Document', back_populates='project', lazy=True)
